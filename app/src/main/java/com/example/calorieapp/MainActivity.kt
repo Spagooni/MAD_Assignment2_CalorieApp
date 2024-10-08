@@ -19,29 +19,50 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             CalorieAppTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                    Greeting(
-                        name = "Android",
-                        modifier = Modifier.padding(innerPadding)
-                    )
-                }
+                AppNavigation()
             }
         }
     }
 }
 
+const val previewWidthDp = 360
+const val previewHeightDp = 740
+const val previewTabletWidthDp = 800
+const val previewTabletHeightDp = 1280
+
+// **********************************************************************************
+// Previews:         (Ignoring large screens for now)
+// **********************************************************************************
 @Composable
-fun Greeting(name: String, modifier: Modifier = Modifier) {
-    Text(
-        text = "Hello $name!",
-        modifier = modifier
-    )
+fun CalorieAppPreview() {
+    CalorieAppTheme {
+        AppNavigation()
+    }
 }
 
-@Preview(showBackground = true)
+@Preview(name = "5-inch Device Portrait",
+    widthDp = previewWidthDp, heightDp = previewHeightDp, showBackground = true)
 @Composable
-fun GreetingPreview() {
-    CalorieAppTheme {
-        Greeting("Android")
-    }
+fun App_Preview5Inch() {
+    CalorieAppPreview()
+}
+@Preview(name = "5-inch Device Landscape",
+    widthDp = previewHeightDp, heightDp = previewWidthDp, showBackground = true)
+@Composable
+fun App_Preview5InchLand() {
+    CalorieAppPreview()
+}
+
+// TODO check if we need these, my friend got 100% with no tablet layouts
+@Preview(name = "10-inch Tablet Portrait",
+    widthDp = previewTabletWidthDp, heightDp = previewTabletHeightDp, showBackground = true)
+@Composable
+fun App_Preview10InchTablet() {
+    CalorieAppPreview()
+}
+@Preview(name = "10-inch Tablet Landscape",
+    widthDp = previewTabletHeightDp, heightDp = previewTabletWidthDp, showBackground = true)
+@Composable
+fun App_Preview10InchTabletLand() {
+    CalorieAppPreview()
 }
