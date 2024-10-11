@@ -2,6 +2,7 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
     id("kotlin-kapt")
+    id("com.google.gms.google-services")
 }
 
 android {
@@ -59,9 +60,14 @@ dependencies {
     implementation(libs.androidx.ui)
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
+    implementation(platform("com.google.firebase:firebase-bom:33.4.0"))
+    implementation(libs.firebase.appcheck.playintegrity)
+    implementation("com.google.firebase:firebase-analytics")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:$2.8.6")
     implementation("androidx.room:room-runtime:2.6.1")
     implementation("androidx.room:room-ktx:2.6.1")
+    implementation(libs.firebase.storage.ktx)
+    implementation(libs.firebase.appcheck.playintegrity)
     kapt("androidx.room:room-compiler:2.6.1")
     implementation(libs.androidx.material3)
     implementation(libs.androidx.navigation.compose)

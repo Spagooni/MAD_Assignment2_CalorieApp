@@ -9,5 +9,6 @@ data class Meal(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String = "",
     @ColumnInfo(name = "meal_calories") val calories: Int = 0,
-    val photo: ByteArray?
+    val photo: ByteArray?,
+    var photoUrl: String?
 )
