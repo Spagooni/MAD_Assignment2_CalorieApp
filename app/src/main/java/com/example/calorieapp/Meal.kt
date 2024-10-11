@@ -8,5 +8,6 @@ import androidx.room.PrimaryKey
 data class Meal(
     @PrimaryKey(autoGenerate = true) val id: Int = 0,
     val name: String = "",
-    @ColumnInfo(name = "meal_calories") val calories: Int = 0
+    @ColumnInfo(name = "meal_calories") val calories: Int = 0,
+    val photo: ByteArray?
 )
