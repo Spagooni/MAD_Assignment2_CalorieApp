@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
@@ -25,9 +26,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -36,6 +39,42 @@ import java.io.ByteArrayOutputStream
 @Composable
 fun LogScreen() {
     val context = LocalContext.current
+
+    InsetContent {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(
+                text = "Log a Meal",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = Color.White,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 16.dp)
+            )
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(25.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                InputEditor { name, mealPhoto ->
+                    addToDatabase(context, name, mealPhoto)
+                }
+            }
+        }
+    }
+}
+
+
+
+@Composable
+fun InputEditor(onAddClicked: (String, Bitmap?) -> Unit) {
+    var text by remember { mutableStateOf("") }
     var mealPhoto by remember { mutableStateOf<Bitmap?>(null) }
 
     val cameraLauncher = rememberLauncherForActivityResult(
@@ -44,104 +83,41 @@ fun LogScreen() {
         mealPhoto = bitmap
     }
 
-    InsetContent {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(25.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                InputEditor { name ->
-                    addToDatabase(context, name, mealPhoto)
-                }
-
-                Button(onClick = { cameraLauncher.launch() }) {
-                    Text(text = "Capture Image")
-                }
-
-                mealPhoto?.let { bitmap ->
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Captured Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                    )
-                }
-            }
-        }
-    }
-}
-
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-fun InputEditor(onAddClicked: (String) -> Unit) {
-    var text by remember { mutableStateOf("") }
-
     TextField(
         value = text,
         onValueChange = { text = it },
         label = { Text("Enter new meal") },
-        modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(bottom = 16.dp)
     )
+
+    Button(onClick = { cameraLauncher.launch() }) {
+        Text(text = "Capture Image")
+    }
+
+    mealPhoto?.let { bitmap ->
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Captured Image",
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(250.dp)
+                .padding(vertical = 16.dp)
+        )
+    }
 
     Button(onClick = {
         if (text.isNotEmpty()) {
-            onAddClicked(text)
+            onAddClicked(text, mealPhoto)
             text = ""
+            mealPhoto = null
         }
     }) {
         Text(text = "Add to Database")
     }
 }
 
-@Composable
-fun ThumbnailCaptureScreen() {
-    var thumbnailImage by remember { mutableStateOf<Bitmap?>(null) }
-
-    // This launcher is equivalent to ActivityResultLauncher
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        if (bitmap != null) {
-            thumbnailImage = bitmap
-        } else {
-            Log.e("CameraCapture", "Failed to capture image")
-        }
-    }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(64.dp)
-    ) {
-        Button(
-            onClick = {
-                cameraLauncher.launch()
-            },
-            modifier = Modifier.padding(bottom = 16.dp)
-        ) {
-            Text(text = "Capture Image")
-        }
-
-        // Display the thumbnail if available
-        thumbnailImage?.let { bitmap ->
-            Image(
-                bitmap = bitmap.asImageBitmap(),
-                contentDescription = "Captured Image",
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(250.dp)
-            )
-        }
-    }
-}
 
 fun bitmapToByteArray(bitmap: Bitmap?): ByteArray? {
     if (bitmap == null) {
@@ -167,4 +143,5 @@ fun addToDatabase(context: Context, mealName: String, mealImage: Bitmap?) {
         }
     }
 }
+
 
