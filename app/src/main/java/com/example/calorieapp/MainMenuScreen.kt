@@ -12,6 +12,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -48,6 +50,15 @@ fun MainMenu_Portrait(navController: NavHostController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+
+        // TODO temporarily put this here until I find a home for it
+        val viewModel = viewModel<CalorieAppViewModel>() // TODO put this in nav controller
+        // Observe StateFlow as State
+        val imageBitmap by viewModel.imageBitmap.collectAsState()
+        val errorMessage by viewModel.errorMessage.collectAsState()
+        val loading by viewModel.loading.collectAsState()
+
+
         Text(
             text = "Main Menu",
             style = MaterialTheme.typography.bodyLarge.copy(
