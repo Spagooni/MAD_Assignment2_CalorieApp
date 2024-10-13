@@ -120,66 +120,6 @@ fun MainMenu_Portrait(navController: NavHostController, shvm: CalorieAppViewMode
         HorizontalDivider(thickness=1.dp, color=Color.Gray)
         // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
-        // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        // TODO temporarily put this here until I find a home for it
-        // Observe StateFlow as State
-        val imageBitmap by shvm.imageBitmap.collectAsState()
-        // search term
-        var searchKey by remember { mutableStateOf("") }
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            BasicTextField(
-                value = searchKey,
-                onValueChange = { searchKey = it },
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                decorationBox = { innerTextField ->
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                    ) {
-                        if (searchKey.isEmpty()) {
-                            Text(text = "Enter search keyword")
-                        }
-                        innerTextField()
-                    }
-                }
-            )
-
-            // Trigger the network call in the ViewModel
-            Button(onClick = { shvm.fetchImage("23319229-94b52a4727158e1dc3fd5f2db", searchKey)
-            }) { Text("Load Image") }
-
-            // // Show loading indicator
-            // if (loading) {CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
-            //
-            // // Show error message if any
-            // errorMessage?.let { if (it.isNotEmpty()) {
-            //         Text(text = it,
-            //             color = MaterialTheme.colorScheme.error,
-            //             modifier = Modifier.padding(16.dp))
-            // }}
-
-            // Show image if available
-            imageBitmap?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Loaded Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                        .padding(16.dp)
-                )
-            }
-        }
-        HorizontalDivider(thickness=1.dp, color=Color.Gray)
-        // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
         Text(
             text = "Main Menu",
             style = MaterialTheme.typography.bodyLarge.copy(

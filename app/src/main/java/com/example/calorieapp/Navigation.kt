@@ -5,7 +5,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
-import com.example.calorieapp.screens.LogScreen
+import com.example.calorieapp.screens.logActivityScreen.LogScreen
 import com.example.calorieapp.screens.LoggedMealsScreen
 import com.example.calorieapp.screens.MainMenuScreen
 
@@ -22,7 +22,7 @@ fun AppNavigation() {
 
     NavHost(navController = navController, startDestination = Routes.MAIN_MENU) {
         composable(Routes.MAIN_MENU) { MainMenuScreen(navController) }
-        composable(Routes.LOG_MEAL) { LogScreen() }
+        composable(Routes.LOG_MEAL) { LogScreen(shvm = viewModel) }
         composable(Routes.LOGGED_MEALS) { LoggedMealsScreen(navController) }
     }
 }

@@ -1,4 +1,4 @@
-package com.example.calorieapp.screens
+package com.example.calorieapp.screens.logActivityScreen
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -18,9 +18,6 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -34,9 +31,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import com.example.calorieapp.mealsDatabase.Meal
@@ -46,31 +40,18 @@ import com.google.firebase.Firebase
 import com.google.firebase.storage.storage
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.delay
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.ui.unit.dp
-import com.example.calorieapp.Ingredient
+import com.example.calorieapp.CalorieAppViewModel
+import com.example.calorieapp.InProgressMeal
+import com.example.calorieapp.MealIngredient
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 
 @Composable
-fun LogScreen() {
+fun LogScreen(shvm: CalorieAppViewModel) {
     val context = LocalContext.current
-
-
-    var mealName by remember { mutableStateOf("") }
-    var mealType by remember { mutableStateOf("") }
-    var ingredients by remember { mutableStateOf(listOf<Ingredient>()) }
-
-    var totalCalories by remember { mutableStateOf(0) }
-    var totalProtein by remember { mutableStateOf(0) }
-    var totalFat by remember { mutableStateOf(0) }
-    var totalCarbs by remember { mutableStateOf(0) }
+    val meal = shvm.currentMeal
 
     InsetContent {
         Box(
@@ -98,16 +79,16 @@ fun LogScreen() {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextField(
-                        value = mealName,
-                        onValueChange = { mealName = it },
+                        value = meal.mealName,
+                        onValueChange = { meal.mealName = it },
                         label = { Text("Meal Name") },
                         modifier = Modifier
                             .weight(1f)
                             .padding(end = 8.dp)
                     )
                     TextField(
-                        value = mealType,
-                        onValueChange = { mealType = it },
+                        value = meal.mealType,
+                        onValueChange = { meal.mealType = it },
                         label = { Text("Meal Type") },
                         modifier = Modifier
                             .weight(1f)
@@ -115,20 +96,18 @@ fun LogScreen() {
                     )
                 }
 
-                fun calculateTotals() {
-                    totalCalories = ingredients.sumOf { it.weight.toIntOrNull()?.times(it.caloriesPerGram.toIntOrNull() ?: 0) ?: 0 }
-                    totalProtein = ingredients.sumOf { it.weight.toIntOrNull()?.times(it.proteinPerGram.toIntOrNull() ?: 0) ?: 0 }
-                    totalFat = ingredients.sumOf { it.weight.toIntOrNull()?.times(it.fatPerGram.toIntOrNull() ?: 0) ?: 0 }
-                    totalCarbs = ingredients.sumOf { it.weight.toIntOrNull()?.times(it.carbsPerGram.toIntOrNull() ?: 0) ?: 0 }
-                }
-
                 Text(
-                    text = "TOTAL: kcal: $totalCalories, fats: $totalFat, protein: $totalProtein, carbs: $totalCarbs",
+                    text = "TOTAL: " +
+                            "weight: ${meal.totalWeight}, " +
+                            "Calories: ${meal.totalCalories}, " +
+                            "Fats: ${meal.totalFats}, " +
+                            "protein: ${meal.totalProtein}, " +
+                            "carbs: ${meal.totalCarbs}",
                     modifier = Modifier.padding(top = 16.dp),
                     style = MaterialTheme.typography.bodyLarge.copy(
                         fontWeight = FontWeight.Bold
                     ),
-                    color = Color.White
+                    // color = Color.White
                 )
 
                 LazyColumn(
@@ -137,19 +116,12 @@ fun LogScreen() {
                         .heightIn(max = 475.dp)
                         .padding(top = 16.dp)
                 ) {
-                    items(ingredients) { ingredient ->
+                    items(meal.ingredients) { ingredient ->
                         IngredientInput(
                             ingredient = ingredient,
-                            onIngredientChange = { updatedIngredient ->
-                                ingredients = ingredients.map {
-                                    if (it == ingredient) updatedIngredient else it
-                                }
-                                calculateTotals()
-                            },
-                            onAutofill = { },
+                            onAutofill = {ingredient.autofill()},
                             onDelete = {
-                                ingredients = ingredients.toMutableList().apply { remove(ingredient) }
-                                calculateTotals()
+                                meal.ingredients.remove(ingredient)
                             }
                         )
                     }
@@ -159,8 +131,8 @@ fun LogScreen() {
 
                 Button(
                     onClick = {
-                        ingredients = ingredients + Ingredient()
-                        calculateTotals()
+                        meal.ingredients.add(MealIngredient())
+                        // calculateTotals()
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -193,13 +165,9 @@ fun LogScreen() {
 
                     Button(
                         onClick = {
-                            if (mealName.isNotEmpty() && mealType.isNotEmpty() && ingredients.isNotEmpty() && mealPhoto != null) {
-                                addToDatabase(context, mealName, mealType, ingredients, mealPhoto) { progress -> }
-                                mealName = ""
-                                mealType = ""
-                                mealPhoto = null
-                                ingredients = listOf()
-                            } else {
+                            if (meal.isValid()) {
+                                addToDatabase(context, meal, mealPhoto) { progress -> }
+                                meal.reset()
                             }
                         },
                         modifier = Modifier
@@ -227,156 +195,7 @@ fun LogScreen() {
 
 
 
-@Composable
-fun IngredientInput(
-    ingredient: Ingredient,
-    onIngredientChange: (Ingredient) -> Unit,
-    onAutofill: () -> Unit,
-    onDelete: () -> Unit
-) {
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(8.dp),
-        shape = RoundedCornerShape(8.dp),
-        elevation = CardDefaults.cardElevation(8.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextField(
-                    value = ingredient.weight,
-                    onValueChange = { onIngredientChange(ingredient.copy(weight = it)) },
-                    label = { Text("Weight (g)") },
-                    modifier = Modifier.weight(1f)
-                )
-                TextField(
-                    value = ingredient.name,
-                    onValueChange = { onIngredientChange(ingredient.copy(name = it)) },
-                    label = { Text("Ingredient Name") },
-                    modifier = Modifier
-                        .weight(2f)
-                        .padding(start = 8.dp)
-                )
-            }
 
-            val totalCalories = (ingredient.weight.toIntOrNull() ?: 0) * (ingredient.caloriesPerGram.toIntOrNull() ?: 0)
-            val totalProtein = (ingredient.weight.toIntOrNull() ?: 0) * (ingredient.proteinPerGram.toIntOrNull() ?: 0)
-            val totalFat = (ingredient.weight.toIntOrNull() ?: 0) * (ingredient.fatPerGram.toIntOrNull() ?: 0)
-            val totalCarbs = (ingredient.weight.toIntOrNull() ?: 0) * (ingredient.carbsPerGram.toIntOrNull() ?: 0)
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextField(
-                    value = ingredient.caloriesPerGram,
-                    onValueChange = { onIngredientChange(ingredient.copy(caloriesPerGram = it)) },
-                    label = { Text("Calories/g") },
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "Total kcal: $totalCalories",
-                    modifier = Modifier.padding(start = 8.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextField(
-                    value = ingredient.proteinPerGram,
-                    onValueChange = { onIngredientChange(ingredient.copy(proteinPerGram = it)) },
-                    label = { Text("Protein/g") },
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "Total Protein: $totalProtein",
-                    modifier = Modifier.padding(start = 8.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextField(
-                    value = ingredient.fatPerGram,
-                    onValueChange = { onIngredientChange(ingredient.copy(fatPerGram = it)) },
-                    label = { Text("Fat/g") },
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "Total Fat: $totalFat",
-                    modifier = Modifier.padding(start = 8.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                TextField(
-                    value = ingredient.carbsPerGram,
-                    onValueChange = { onIngredientChange(ingredient.copy(carbsPerGram = it)) },
-                    label = { Text("Carbs/g") },
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "Total Carbs: $totalCarbs",
-                    modifier = Modifier.padding(start = 8.dp),
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyLarge.copy(fontWeight = FontWeight.Bold)
-                )
-            }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Button(
-                    onClick = onAutofill,
-                    modifier = Modifier
-                        .weight(2f)
-                        .padding(end = 8.dp)
-                ) {
-                    Text("Autofill")
-                }
-
-                Button(
-                    onClick = onDelete,
-                    colors = ButtonDefaults.buttonColors(containerColor = Color.Red),
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Text("Delete")
-                }
-            }
-        }
-    }
-}
 
 
 
@@ -458,32 +277,23 @@ fun bitmapToByteArray(bitmap: Bitmap?): ByteArray? {
 
 fun addToDatabase(
     context: Context,
-    mealName: String,
-    mealType: String,
-    ingredients: List<Ingredient>,
+    inProgressMeal: InProgressMeal,
     mealImage: Bitmap?,
     onProgress: (Float) -> Unit
 ) {
     val db = MealDatabase.getDatabase(context)
     val imageByteArray = bitmapToByteArray(mealImage)
-
-    val totalCalories = ingredients.sumOf { it.caloriesPerGram.toInt() }
-    val totalWeight = ingredients.sumOf { it.weight.toInt() }
-    val totalProtein = ingredients.sumOf { it.proteinPerGram.toInt() }
-    val totalCarbs = ingredients.sumOf { it.carbsPerGram.toInt() }
-    val totalFat = ingredients.sumOf { it.fatPerGram.toInt() }
-
-    val ingredientsString = ingredients.joinToString(", ") { it.name }
+    val ingredientsString = inProgressMeal.ingredients.joinToString(", ") { it.name }
 
     val newMeal = Meal(
-        name = mealName,
-        mealType = mealType,
+        name = inProgressMeal.mealName,
+        mealType = inProgressMeal.mealType,
         ingredients = ingredientsString,
-        calories = totalCalories,
-        totalWeight = totalWeight,
-        totalProtein = totalProtein,
-        totalCarbs = totalCarbs,
-        totalFat = totalFat,
+        calories = inProgressMeal.totalCalories.toInt(),
+        totalWeight = inProgressMeal.totalWeight.toInt(),
+        totalProtein = inProgressMeal.totalProtein.toInt(),
+        totalCarbs = inProgressMeal.totalCarbs.toInt(),
+        totalFat = inProgressMeal.totalFats.toInt(),
         photo = imageByteArray,
         photoUrl = null
     )
@@ -498,8 +308,8 @@ fun addToDatabase(
     }
 
     if (mealImage != null) {
-        uploadImageToFirebase(mealName, mealImage, { downloadUrl ->
-            val newMeal = Meal(name = mealName, calories = 1, photo = imageByteArray, photoUrl = downloadUrl)
+        uploadImageToFirebase(inProgressMeal.mealName, mealImage, { downloadUrl ->
+            val newMeal = Meal(name = inProgressMeal.mealName, calories = 1, photo = imageByteArray, photoUrl = downloadUrl)
 
             CoroutineScope(Dispatchers.IO).launch {
                 try {
@@ -513,7 +323,7 @@ fun addToDatabase(
             onProgress(progress)
         })
     } else {
-        val newMeal = Meal(name = mealName, calories = 1, photo = imageByteArray, photoUrl = null)
+        val newMeal = Meal(name = inProgressMeal.mealName, calories = 1, photo = imageByteArray, photoUrl = null)
 
         CoroutineScope(Dispatchers.IO).launch {
             try {

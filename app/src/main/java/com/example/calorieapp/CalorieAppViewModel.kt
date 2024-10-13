@@ -1,7 +1,7 @@
 package com.example.calorieapp
 
-import android.graphics.BitmapFactory
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.ResponseBody
 
 class CalorieAppViewModel : ViewModel() {
     /** MutableStateFlow to hold the current response */
@@ -62,5 +61,79 @@ class CalorieAppViewModel : ViewModel() {
                 _loading.value = false
             }
         }
+    }
+
+    var currentMeal by mutableStateOf(InProgressMeal())
+        private set
+    fun resetCurrentMeal() {
+        currentMeal = InProgressMeal()
+    }
+}
+
+
+/** Class to store the current meal being logged */
+class InProgressMeal {
+    var mealName by mutableStateOf("")
+    var mealType by mutableStateOf("")
+    var ingredients = mutableStateListOf<MealIngredient>() // initially empty
+
+    val totalWeight: Double get() = ingredients.sumOf { it.weight.toDoubleOrNull() ?: 0.0 }
+    val totalCalories: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
+    val totalProtein: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
+    val totalFats: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
+    val totalCarbs: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
+
+    fun isValid(): Boolean {
+        if(mealName.isNotEmpty() && mealType.isNotEmpty() && ingredients.isNotEmpty()) {
+            return (!(ingredients.map { it.isValid() }.contains(false)))
+        }
+        return false
+    }
+
+    fun reset() {
+        mealName = ""
+        mealType = ""
+        ingredients.clear()
+    }
+}
+
+/** Class to hold ingredients and relevant info */
+class MealIngredient() {
+    var name by mutableStateOf("")
+    var weight by mutableStateOf("")
+    var kcalPerGram by mutableStateOf("")
+    var fatsPerGram by mutableStateOf("")
+    var proteinPerGram by mutableStateOf("")
+    var carbsPerGram by mutableStateOf("")
+
+    /** computed properties */
+    private fun safeScaleByWeight(value: String): String {
+        weight.toDoubleOrNull()?.let { weightDouble ->
+            value.toDoubleOrNull()?.let { valueDouble ->
+                return "${weightDouble * valueDouble}"
+            }
+        }
+        return "-"
+    }
+    val totalKcal: String get() = safeScaleByWeight(kcalPerGram)
+    val totalFats: String get() = safeScaleByWeight(fatsPerGram)
+    val totalProtein: String get() = safeScaleByWeight(proteinPerGram)
+    val totalCarbs: String get() = safeScaleByWeight(carbsPerGram)
+
+    fun isValid(): Boolean {
+        return name.isNotEmpty() &&
+            totalKcal != "-" &&
+            totalFats != "-" &&
+            totalProtein != "-" &&
+            totalCarbs != "-"
+    }
+
+    /** autofill ingredient per-gram values based on API call */
+    fun autofill() {
+        // TODO replace with API call later
+        kcalPerGram = "1"
+        fatsPerGram = "1"
+        proteinPerGram = "1"
+        carbsPerGram = "1"
     }
 }
