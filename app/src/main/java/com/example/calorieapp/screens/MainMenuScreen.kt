@@ -43,21 +43,23 @@ import com.example.calorieapp.previewWidthDp
 import com.example.calorieapp.ui.theme.CalorieAppTheme
 
 @Composable
-fun MainMenuScreen(navController: NavHostController) {
+fun MainMenuScreen(navController: NavHostController,
+                   shvm: CalorieAppViewModel = viewModel<CalorieAppViewModel>()
+) {
     val orientation = LocalConfiguration.current.orientation
     InsetContent {
         when (orientation) {
             Configuration.ORIENTATION_PORTRAIT ->
-                MainMenu_Portrait(navController = navController)
+                MainMenu_Portrait(navController = navController, shvm)
             else ->
-                MainMenu_Portrait(navController = navController)
+                MainMenu_Portrait(navController = navController, shvm)
         }
     }
 }
 
 
 @Composable
-fun MainMenu_Portrait(navController: NavHostController) {
+fun MainMenu_Portrait(navController: NavHostController, shvm: CalorieAppViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -66,14 +68,13 @@ fun MainMenu_Portrait(navController: NavHostController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val viewModel = viewModel<CalorieAppViewModel>() // TODO put this in nav controller
-        val errorMessage by viewModel.errorMessage.collectAsState()
-        val loading by viewModel.loading.collectAsState()
+        val errorMessage by shvm.errorMessage.collectAsState()
+        val loading by shvm.loading.collectAsState()
 
         // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         // TODO temporarily put this here until I find a home for it
         // Observe StateFlow as State
-        val calorieNinjasResponse by viewModel.calorieNinjasResponse.collectAsState()
+        val calorieNinjasResponse by shvm.calorieNinjasResponse.collectAsState()
         // search term
         var calorieNinjasQuery by remember { mutableStateOf("") }
         Column(
@@ -85,7 +86,7 @@ fun MainMenu_Portrait(navController: NavHostController) {
 
             // Trigger the network call in the ViewModel
             Button(onClick = {
-                viewModel.fetchCalories(calorieNinjasQuery)
+                shvm.fetchCalories(calorieNinjasQuery)
             }) { Text("Get nutrition info") }
 
             // Show loading indicator
@@ -122,7 +123,7 @@ fun MainMenu_Portrait(navController: NavHostController) {
         // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         // TODO temporarily put this here until I find a home for it
         // Observe StateFlow as State
-        val imageBitmap by viewModel.imageBitmap.collectAsState()
+        val imageBitmap by shvm.imageBitmap.collectAsState()
         // search term
         var searchKey by remember { mutableStateOf("") }
         Column(
@@ -151,7 +152,7 @@ fun MainMenu_Portrait(navController: NavHostController) {
             )
 
             // Trigger the network call in the ViewModel
-            Button(onClick = { viewModel.fetchImage("23319229-94b52a4727158e1dc3fd5f2db", searchKey)
+            Button(onClick = { shvm.fetchImage("23319229-94b52a4727158e1dc3fd5f2db", searchKey)
             }) { Text("Load Image") }
 
             // // Show loading indicator

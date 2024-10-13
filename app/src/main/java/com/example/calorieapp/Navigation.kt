@@ -1,6 +1,7 @@
 package com.example.calorieapp
 
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -17,6 +18,7 @@ data object Routes{
 @Composable
 fun AppNavigation() {
     val navController = rememberNavController()
+    val viewModel = viewModel<CalorieAppViewModel>()
 
     NavHost(navController = navController, startDestination = Routes.MAIN_MENU) {
         composable(Routes.MAIN_MENU) { MainMenuScreen(navController) }

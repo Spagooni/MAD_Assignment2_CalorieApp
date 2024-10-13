@@ -1,6 +1,9 @@
 package com.example.calorieapp
 
 import android.graphics.BitmapFactory
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorieapp.remoteAPIs.CalorieNinjasResponseModel
@@ -55,44 +58,6 @@ class CalorieAppViewModel : ViewModel() {
                 _calorieNinjasResponse.value = searchResult // set result in view model
             } catch (e: Exception) {
                 _errorMessage.value = "Error getting calories: ${e.message}"
-            } finally {
-                _loading.value = false
-            }
-        }
-    }
-
-
-
-
-    // TODO lecture stuff, needs to be removed later
-    // MutableStateFlow to hold the image
-    private val _imageBitmap = MutableStateFlow<android.graphics.Bitmap?>(null)
-    val imageBitmap: StateFlow<android.graphics.Bitmap?> get() = _imageBitmap
-
-    private val pixabayAPIService = RetrofitInstance.pixabayAPI
-
-    // Function to perform the network call
-    fun fetchImage(apiKey: String, searchQuery: String) {
-        _loading.value = true
-
-        viewModelScope.launch {
-            try {
-                val searchResult = withContext(Dispatchers.IO) {
-                    pixabayAPIService.getSearchResponse(apiKey, searchQuery)
-                }
-
-                val imageUrl = searchResult.hits.firstOrNull()?.largeImageURL ?: ""
-
-                val imageResponse: ResponseBody = withContext(Dispatchers.IO) {
-                    pixabayAPIService.getImage(imageUrl)
-                }
-
-                val bitmap = BitmapFactory.decodeStream(imageResponse.byteStream())
-                _imageBitmap.value = bitmap
-                _errorMessage.value = null
-            } catch (e: Exception) {
-                _errorMessage.value = "Error loading image: ${e.message}"
-                _imageBitmap.value = null
             } finally {
                 _loading.value = false
             }
