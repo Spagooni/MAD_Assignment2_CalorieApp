@@ -1,9 +1,8 @@
-package com.example.calorieapp
+package com.example.calorieapp.mealsDatabase
 
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import androidx.compose.foundation.Image
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase

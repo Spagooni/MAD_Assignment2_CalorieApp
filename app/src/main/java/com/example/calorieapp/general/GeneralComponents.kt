@@ -1,4 +1,4 @@
-package com.example.calorieapp
+package com.example.calorieapp.general
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column

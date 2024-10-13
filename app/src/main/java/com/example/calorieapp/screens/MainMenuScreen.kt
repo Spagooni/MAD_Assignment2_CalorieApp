@@ -1,4 +1,4 @@
-package com.example.calorieapp
+package com.example.calorieapp.screens
 
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
@@ -35,6 +35,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.calorieapp.CalorieAppViewModel
+import com.example.calorieapp.Routes
+import com.example.calorieapp.general.InsetContent
+import com.example.calorieapp.previewHeightDp
+import com.example.calorieapp.previewWidthDp
 import com.example.calorieapp.ui.theme.CalorieAppTheme
 
 @Composable
@@ -192,12 +197,6 @@ fun MainMenu_Portrait(navController: NavHostController) {
             modifier = Modifier.padding(top = 16.dp)
         ) {
             Text(text = "Logged Meals")
-        }
-        Button(
-            onClick = { navController.navigate(Routes.PROFILES) },
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text(text = "Profiles")
         }
     }
 }

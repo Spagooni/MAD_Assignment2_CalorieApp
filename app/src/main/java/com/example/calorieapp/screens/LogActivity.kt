@@ -1,4 +1,4 @@
-package com.example.calorieapp
+package com.example.calorieapp.screens
 
 import android.content.Context
 import android.graphics.Bitmap
@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -32,11 +31,11 @@ import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import com.example.calorieapp.mealsDatabase.Meal
+import com.example.calorieapp.general.InsetContent
+import com.example.calorieapp.mealsDatabase.MealDatabase
 import com.google.firebase.Firebase
-import com.google.firebase.storage.FirebaseStorage
-import com.google.firebase.storage.ktx.storage
 import com.google.firebase.storage.storage
-import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -187,7 +186,7 @@ fun addToDatabase(context: Context, mealName: String, mealImage: Bitmap?, onProg
 fun uploadImageToFirebase(mealName: String, mealImage: Bitmap, onSuccess: (String) -> Unit, onProgress: (Float) -> Unit) {
     val storageRef = Firebase.storage.reference.child("images/$mealName.jpg")
 
-    val imageData = bitmapToByteArray(mealImage)
+    val imageData = com.example.calorieapp.mealsDatabase.bitmapToByteArray(mealImage)
     val uploadTask = storageRef.putBytes(imageData!!)
 
     uploadTask.addOnSuccessListener { taskSnapshot ->
