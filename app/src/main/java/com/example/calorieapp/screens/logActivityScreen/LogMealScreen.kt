@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
+import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
@@ -13,6 +14,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -45,6 +47,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.ui.platform.LocalConfiguration
@@ -53,6 +57,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorieapp.CalorieAppViewModel
 import com.example.calorieapp.InProgressMeal
 import com.example.calorieapp.MealIngredient
+import com.example.calorieapp.mealsDatabase.bitmapToByteArray
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 
@@ -73,6 +78,7 @@ fun LogMealScreen(shvm: CalorieAppViewModel) {
 @Composable
 fun LogMealScreen_Preview() {
     val shvm = viewModel<CalorieAppViewModel>()
+    shvm.insertingIntoDB = true
     shvm.currentMeal.ingredients.add(MealIngredient()) // add empty ingredient
     LogMealScreen(shvm)
 }
@@ -81,7 +87,13 @@ fun LogMealScreen_Preview() {
 fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
     val context = LocalContext.current
     val meal = shvm.currentMeal
-    // val loadingAPICall by shvm.loading.collectAsState()
+
+    // for camera
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        meal.photo = bitmap
+    }
 
     Column(
         modifier = Modifier
@@ -113,7 +125,7 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             TextField(
                 value = meal.mealType,
                 onValueChange = { meal.mealType = it },
-                label = { Text("Meal Type") },
+                label = { Text("Meal Type (optional)") },
                 modifier = Modifier
                     .weight(1f)
             )
@@ -131,6 +143,7 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             ),
             // color = Color.White
         )
+
         LazyColumn(
             modifier = Modifier
                 .fillMaxWidth()
@@ -139,30 +152,18 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             items(meal.ingredients) { ingredient ->
                 IngredientInputCard(
                     ingredient = ingredient,
-                    onAutofill = {
-                        shvm.autofillIngredient(ingredient)
-                    },
-                    onDelete = {
-                        meal.ingredients.remove(ingredient)
-                    },
+                    onAutofill = { shvm.autofillIngredient(ingredient) },
+                    onDelete = { meal.ingredients.remove(ingredient) },
                     loading = ingredient.isLoading,
                 )
             }
         }
 
-        var mealPhoto by remember { mutableStateOf<Bitmap?>(null) }
-
-        val cameraLauncher = rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.TakePicturePreview()
-        ) { bitmap: Bitmap? ->
-            mealPhoto = bitmap
-        }
 
         Column() {
-            Button(onClick = {
-                meal.ingredients.add(MealIngredient())
-            },
-                modifier = Modifier.fillMaxWidth()
+            Button(
+                onClick = { meal.ingredients.add(MealIngredient()) },
+                modifier = Modifier.fillMaxWidth(),
             ) { Text("Add Ingredient ") }
 
             Row(
@@ -178,16 +179,33 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
                 Button(
                     onClick = {
                         if (meal.isValid()) {
-                            addToDatabase(context, meal, mealPhoto) { progress -> }
-                            meal.reset()
+                            val mealName = meal.mealName // snapshot in case it changes
+                            val calories = meal.totalCalories
+                            shvm.saveMealToDB(successToast = {
+                                Toast.makeText(context,
+                                    "Saved meal: $mealName, ($calories kcal)",
+                                    Toast.LENGTH_SHORT).show()
+                            })
+                        } else {
+                            Toast.makeText(context,
+                                "Provide meal name and a valid ingredient before saving",
+                                Toast.LENGTH_SHORT).show()
                         }
                     },
-                    modifier = Modifier.weight(1f)
-                ) { Text("Add to Database") }
+                    modifier = Modifier.weight(1f),
+                    enabled = !shvm.insertingIntoDB,
+                ) {
+                    if (shvm.insertingIntoDB) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.fillMaxHeight().size(25.dp))
+                    } else {
+                        Text("Add to Database")
+                    }
+                }
             }
         }
 
-        mealPhoto?.let { bitmap ->
+        meal.photo?.let { bitmap ->
             Image(
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "Captured Image",
@@ -198,172 +216,14 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             )
         }
 
+        shvm.imageUploadProgress?.let { progress ->
+            Text(text = "Uploading image. Progress: ${(progress * 100).toInt()}%")
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+            )
+        }
+
         Spacer(modifier = Modifier.size(50.dp)) // space at the bottom of the scroll
-    }
-}
-
-
-
-
-
-
-
-//@Composable
-//fun InputEditor(onAddClicked: (String, Bitmap?, (Float) -> Unit) -> Unit) {
-//    var text by remember { mutableStateOf("") }
-//    var mealPhoto by remember { mutableStateOf<Bitmap?>(null) }
-//    var uploadProgress by remember { mutableStateOf<Float?>(null) }
-//
-//    val cameraLauncher = rememberLauncherForActivityResult(
-//        contract = ActivityResultContracts.TakePicturePreview()
-//    ) { bitmap: Bitmap? ->
-//        mealPhoto = bitmap
-//    }
-//
-//    TextField(
-//        value = text,
-//        onValueChange = { text = it },
-//        label = { Text("Enter new meal") },
-//        modifier = Modifier
-//            .fillMaxWidth()
-//            .padding(bottom = 16.dp)
-//    )
-//
-//    Button(onClick = { cameraLauncher.launch() }) {
-//        Text(text = "Capture Image")
-//    }
-//
-//    mealPhoto?.let { bitmap ->
-//        Image(
-//            bitmap = bitmap.asImageBitmap(),
-//            contentDescription = "Captured Image",
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .height(250.dp)
-//                .padding(vertical = 16.dp)
-//        )
-//    }
-//
-//    Button(onClick = {
-//        if (text.isNotEmpty()) {
-//            onAddClicked(text, mealPhoto) { progress ->
-//                uploadProgress = progress
-//            }
-//            text = ""
-//            mealPhoto = null
-//            uploadProgress = null
-//        }
-//    }) {
-//        Text(text = "Add to Database")
-//    }
-//
-//    uploadProgress?.let { progress ->
-//        LinearProgressIndicator(
-//            progress = { progress / 100f },
-//            modifier = Modifier
-//                .fillMaxWidth()
-//                .padding(bottom = 16.dp),
-//        )
-//
-//        if (progress >= 100f) {
-//            CoroutineScope(Dispatchers.Main).launch {
-//                delay(1000)
-//                uploadProgress = null
-//            }
-//        }
-//    }
-//}
-
-fun bitmapToByteArray(bitmap: Bitmap?): ByteArray? {
-    if (bitmap == null) {
-        Log.e("BitmapError", "Bitmap is null")
-        return null
-    }
-    val stream = ByteArrayOutputStream()
-    bitmap.compress(Bitmap.CompressFormat.PNG, 100, stream)
-    return stream.toByteArray()
-}
-
-fun addToDatabase(
-    context: Context,
-    inProgressMeal: InProgressMeal,
-    mealImage: Bitmap?,
-    onProgress: (Float) -> Unit
-) {
-    val db = MealDatabase.getDatabase(context)
-    val imageByteArray = bitmapToByteArray(mealImage)
-    val ingredientsString = inProgressMeal.ingredients.joinToString(", ") { it.name }
-
-    val newMeal = Meal(
-        name = inProgressMeal.mealName,
-        mealType = inProgressMeal.mealType,
-        ingredients = ingredientsString,
-        calories = inProgressMeal.totalCalories.toInt(),
-        totalWeight = inProgressMeal.totalWeight.toInt(),
-        totalProtein = inProgressMeal.totalProtein.toInt(),
-        totalCarbs = inProgressMeal.totalCarbs.toInt(),
-        totalFat = inProgressMeal.totalFats.toInt(),
-        photo = imageByteArray,
-        photoUrl = null
-    )
-
-    CoroutineScope(Dispatchers.IO).launch {
-        try {
-            db.mealDAO().insert(newMeal)
-            Log.d("Database", "Meal inserted successfully")
-        } catch (e: Exception) {
-            Log.e("DatabaseError", "Error inserting meal: ${e.message}")
-        }
-    }
-
-    if (mealImage != null) {
-        uploadImageToFirebase(inProgressMeal.mealName, mealImage, { downloadUrl ->
-            val newMeal = Meal(name = inProgressMeal.mealName, calories = 1, photo = imageByteArray, photoUrl = downloadUrl)
-
-            CoroutineScope(Dispatchers.IO).launch {
-                try {
-                    db.mealDAO().insert(newMeal)
-                    Log.d("Database", "Meal inserted with image URL: $downloadUrl")
-                } catch (e: Exception) {
-                    Log.e("DatabaseError", "Error inserting meal: ${e.message}")
-                }
-            }
-        }, { progress ->
-            onProgress(progress)
-        })
-    } else {
-        val newMeal = Meal(name = inProgressMeal.mealName, calories = 1, photo = imageByteArray, photoUrl = null)
-
-        CoroutineScope(Dispatchers.IO).launch {
-            try {
-                db.mealDAO().insert(newMeal)
-                Log.d("Database", "Meal inserted without image")
-            } catch (e: Exception) {
-                Log.e("DatabaseError", "Error inserting meal: ${e.message}")
-            }
-        }
-    }
-}
-
-
-fun uploadImageToFirebase(mealName: String, mealImage: Bitmap, onSuccess: (String) -> Unit, onProgress: (Float) -> Unit) {
-    val storageRef = Firebase.storage.reference.child("images/$mealName.jpg")
-
-    val imageData = com.example.calorieapp.mealsDatabase.bitmapToByteArray(mealImage)
-    val uploadTask = storageRef.putBytes(imageData!!)
-
-    uploadTask.addOnSuccessListener { taskSnapshot ->
-        storageRef.downloadUrl.addOnSuccessListener { uri ->
-            Log.d("FirebaseStorage", "Image uploaded successfully. URL: $uri")
-            onSuccess(uri.toString())
-        }.addOnFailureListener { e ->
-            Log.e("FirebaseStorage", "Failed to get download URL: ${e.message}")
-        }
-    }.addOnFailureListener { e ->
-        Log.e("FirebaseStorage", "Image upload failed: ${e.message}")
-    }.addOnProgressListener { taskSnapshot ->
-        val progress = (100.0 * taskSnapshot.bytesTransferred / taskSnapshot.totalByteCount)
-        Log.d("FirebaseStorage", "Upload is $progress% done")
-        onProgress(progress.toFloat())
     }
 }

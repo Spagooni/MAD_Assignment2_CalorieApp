@@ -68,57 +68,57 @@ fun MainMenu_Portrait(navController: NavHostController, shvm: CalorieAppViewMode
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val errorMessage by shvm.errorMessage.collectAsState()
-        val loading by shvm.loading.collectAsState()
-
-        // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        // TODO temporarily put this here until I find a home for it
-        // Observe StateFlow as State
-        val calorieNinjasResponse by shvm.calorieNinjasResponse.collectAsState()
-        // search term
-        var calorieNinjasQuery by remember { mutableStateOf("") }
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            TextField(value = calorieNinjasQuery, onValueChange = {calorieNinjasQuery = it})
-
-            // Trigger the network call in the ViewModel
-            Button(onClick = {
-                shvm.fetchCalories(calorieNinjasQuery)
-            }) { Text("Get nutrition info") }
-
-            // Show loading indicator
-            if (loading) {CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
-
-            // Show error message if any
-            errorMessage?.let { if (it.isNotEmpty()) {
-                Text(text = it,
-                    color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(16.dp))
-            }}
-
-            // Show response if available
-            calorieNinjasResponse?.let { response ->
-                Text(text = "items: ${response.items.size}")
-                response.items.forEach { item ->
-                    val servingSize = item.servingSizeGrams
-                    val kcal = item.caloriesPerServe / (servingSize / 100.0)
-                    val fats = item.fatTotalPerServe / (servingSize / 100.0)
-                    val protein = item.proteinPerServe / (servingSize / 100.0)
-                    val carbs = item.carbsPerServe / (servingSize / 100.0)
-                    Text(text = "${item.name}: \n" +
-                            "$kcal kcal / 100g\n" +
-                            "$fats g fats / 100g\n" +
-                            "$protein g protein / 100g\n" +
-                            "$carbs g carbs / 100g\n"
-                    )
-                }
-            }
-        }
-        HorizontalDivider(thickness=1.dp, color=Color.Gray)
-        // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        // val errorMessage by shvm.errorMessage.collectAsState()
+        // val loading by shvm.loading.collectAsState()
+        //
+        // // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+        // // TODO temporarily put this here until I find a home for it
+        // // Observe StateFlow as State
+        // val calorieNinjasResponse by shvm.calorieNinjasResponse.collectAsState()
+        // // search term
+        // var calorieNinjasQuery by remember { mutableStateOf("") }
+        // Column(
+        //     modifier = Modifier.fillMaxSize(),
+        //     horizontalAlignment = Alignment.CenterHorizontally,
+        //     verticalArrangement = Arrangement.Center
+        // ) {
+        //     TextField(value = calorieNinjasQuery, onValueChange = {calorieNinjasQuery = it})
+        //
+        //     // Trigger the network call in the ViewModel
+        //     Button(onClick = {
+        //         shvm.fetchCalories(calorieNinjasQuery)
+        //     }) { Text("Get nutrition info") }
+        //
+        //     // Show loading indicator
+        //     if (loading) {CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
+        //
+        //     // Show error message if any
+        //     errorMessage?.let { if (it.isNotEmpty()) {
+        //         Text(text = it,
+        //             color = MaterialTheme.colorScheme.error,
+        //             modifier = Modifier.padding(16.dp))
+        //     }}
+        //
+        //     // Show response if available
+        //     calorieNinjasResponse?.let { response ->
+        //         Text(text = "items: ${response.items.size}")
+        //         response.items.forEach { item ->
+        //             val servingSize = item.servingSizeGrams
+        //             val kcal = item.caloriesPerServe / (servingSize / 100.0)
+        //             val fats = item.fatTotalPerServe / (servingSize / 100.0)
+        //             val protein = item.proteinPerServe / (servingSize / 100.0)
+        //             val carbs = item.carbsPerServe / (servingSize / 100.0)
+        //             Text(text = "${item.name}: \n" +
+        //                     "$kcal kcal / 100g\n" +
+        //                     "$fats g fats / 100g\n" +
+        //                     "$protein g protein / 100g\n" +
+        //                     "$carbs g carbs / 100g\n"
+        //             )
+        //         }
+        //     }
+        // }
+        // HorizontalDivider(thickness=1.dp, color=Color.Gray)
+        // // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
         Text(
             text = "Main Menu",
