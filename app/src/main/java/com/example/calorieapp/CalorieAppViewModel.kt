@@ -1,5 +1,7 @@
 package com.example.calorieapp
 
+import android.content.Context
+import android.graphics.Bitmap
 import android.util.Log
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
@@ -7,57 +9,165 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.calorieapp.mealsDatabase.Meal
+import com.example.calorieapp.mealsDatabase.MealDAO
+import com.example.calorieapp.mealsDatabase.MealDatabase
+import com.example.calorieapp.mealsDatabase.bitmapToByteArray
+import com.example.calorieapp.mealsDatabase.upscaleBitmap
 import com.example.calorieapp.remoteAPIs.CalorieNinjasAPICalls
-import com.example.calorieapp.remoteAPIs.CalorieNinjasResponseModel
 import com.example.calorieapp.remoteAPIs.RetrofitInstance
-import kotlinx.coroutines.CoroutineScope
+import com.google.firebase.Firebase
+import com.google.firebase.storage.FirebaseStorage
+import com.google.firebase.storage.storage
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
+
 class CalorieAppViewModel : ViewModel() {
+    /** DAO for database, should be provided when the viewmodel is instantiated */
+    var mealDao: MealDAO? = null
+
     /** service for calorie ninjas API */
     private val calorieNinjasAPIService = RetrofitInstance.calorieNinjasAPI
 
-    /** MutableStateFlow to hold the current response */
-    private val _calorieNinjasResponse = MutableStateFlow<CalorieNinjasResponseModel?>(null)
-    val calorieNinjasResponse: StateFlow<CalorieNinjasResponseModel?>
-        get() = _calorieNinjasResponse
+    /** true from when saveMealToDB is called until saved in DB, INCLUDES FIREBASE UPLOAD */
+    var insertingIntoDB by mutableStateOf(false)
+    /** null when not uploading, 0.0 at start of upload and 1.0 at end */
+    var imageUploadProgress by mutableStateOf<Float?>(null)
 
-    /** MutableStateFlow to hold error messages */
-    private val _errorMessage = MutableStateFlow<String?>("")
-    val errorMessage: StateFlow<String?> get() = _errorMessage
-
-    /** MutableStateFlow to hold loading state */
-    private val _loading = MutableStateFlow(false)
-    val loading: StateFlow<Boolean> get() = _loading
-
+    /** insert completed meal object into database and reset UI fields */
+    private fun saveToDatabase(mealDao: MealDAO, meal: Meal, successToast : () -> Unit,) {
+        viewModelScope.launch(Dispatchers.IO) {
+            try {
+                Log.d("Database", "attempting insert")
+                mealDao.insert(meal) // Insert meal into database
+                Log.d("Database", "Meal inserted with image URL: ${meal.photoUrl}")
+                withContext(Dispatchers.Main) {
+                    successToast()
+                }
+                currentMeal.reset() // Reset the current meal data if upload successful
+            } catch (e: Exception) {
+                Log.e("DatabaseError", "Error inserting meal: ${e.message}")
+            } finally {
+                insertingIntoDB = false
+            }
+        }
+    }
 
     /**
-     * Function to perform the network call to calorie ninjas API
+     * Save the current meal to database if valid, does nothing if else.
+     * Track progress with:
+     * - insertingIntoDB (true during insert AND upload if photo available)
+     * - imageUploadProgress (from 0.0 to 1.0 and null when not uploading)
      */
-    fun fetchCalories(searchQuery: String) {
-        _loading.value = true // set loading true while making network call
+    fun saveMealToDB(
+        successToast : () -> Unit,
+    ) {
+        if (mealDao == null) {
+            Log.e("Database", "ERROR cannot insert, no DAO provided")
+            return // early return if no DAO provided
+        }
+        val safeMealDao: MealDAO = mealDao!!
+        if (!currentMeal.isValid()) {
+            Log.e("Database", "ERROR cannot insert, current UI meal not valid")
+            return // early return if current UI meal not valid
+        }
+        insertingIntoDB = true
+        Log.d("Database", "inside addToDatabase")
 
-        /**
-         * scope coroutine to the view model so it is auto cancelled
-         * when the view model lifecycle ends
-         */
-        viewModelScope.launch {
-            try {
-                /** input/output on the IO thread */
-                val searchResult: CalorieNinjasResponseModel =
-                    withContext(Dispatchers.IO) {
-                        calorieNinjasAPIService.getSearchResponse(searchQuery)
-                    }
-                _calorieNinjasResponse.value = searchResult // set result in view model
-            } catch (e: Exception) {
-                _errorMessage.value = "Error getting calories: ${e.message}"
-            } finally {
-                _loading.value = false
+        /** create ingredients string from ingredients list */
+        val ingredientsString = currentMeal.ingredients
+            .joinToString(", ") { it.name }
+
+        /** create new meal with no photo url */
+        val newMeal = Meal(
+            name = currentMeal.mealName,
+            mealType = currentMeal.mealType,
+            ingredients = ingredientsString,
+            calories = currentMeal.totalCalories.toInt(),
+            totalWeight = currentMeal.totalWeight.toInt(),
+            totalProtein = currentMeal.totalProtein.toInt(),
+            totalCarbs = currentMeal.totalCarbs.toInt(),
+            totalFat = currentMeal.totalFats.toInt(),
+            photo = null,
+            photoUrl = null
+        )
+
+        /** If no image, upload straight away, else save image to firebase first */
+        val mealPhotoByteArray = currentMeal.photo?.let { bitmapToByteArray(it) } // byteArray?
+        if (mealPhotoByteArray == null) { // no photo for meal, direct insert
+            saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast)
+        } else {
+            Log.e("DATABASE", "has photo, uploading with photo")
+            newMeal.photo = mealPhotoByteArray // set bytearray field in DB
+            uploadMealImageToFirebase(
+                onUploadSuccess = { uriString ->
+                    newMeal.photoUrl = uriString
+                    saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast) // save with firebase URL
+                },
+                onUploadFail = {
+                    saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast) // save anyways???
+                }
+            )
+        }
+    }
+
+    /** scale image 3x up (to slow upload) and upload to firebase */
+    private fun uploadMealImageToFirebase(
+        onUploadSuccess: (String) -> Unit,
+        onUploadFail: () -> Unit,
+    ) {
+        currentMeal.photo?.let { originalBitmap -> // snapshot stateful bitmap to prevent errors
+            viewModelScope.launch {
+                // Run the upscale operation in a background thread (Default dispatcher)
+                val upscaledBitmap = withContext(Dispatchers.Default) {
+                    upscaleBitmap(originalBitmap, scaleFactor = 3f)
+                }
+                val byteArray = withContext(Dispatchers.Default) {
+                    bitmapToByteArray(upscaledBitmap) // Convert the upscaled bitmap to byte array
+                }
+                // Proceed to upload the image
+                withContext(Dispatchers.IO) {
+                    uploadImageToFirebase(
+                        imageByteArray = byteArray,
+                        name = currentMeal.mealName,
+                        onUploadSuccess = onUploadSuccess,
+                        onUploadFail = onUploadFail,
+                    )
+                }
             }
+        }
+    }
+
+    private fun uploadImageToFirebase(
+        imageByteArray: ByteArray,
+        name: String,
+        onUploadSuccess: (String) -> Unit,
+        onUploadFail: () -> Unit,
+    ) {
+        imageUploadProgress = 0f
+        val storageRef = Firebase.storage.reference.child(
+                "images/$name.png")
+        val uploadTask = storageRef.putBytes(imageByteArray)
+
+        // Listen for the progress of the upload
+        uploadTask.addOnProgressListener { taskSnapshot ->
+            // Calculate progress percentage
+            Log.d("FirebaseStorage", "Uploaded ${taskSnapshot.bytesTransferred} of ${taskSnapshot.totalByteCount} bytes")
+            val progress = taskSnapshot.bytesTransferred.toDouble() / taskSnapshot.totalByteCount
+            imageUploadProgress = progress.toFloat()// Progress is a float between 0 and 1
+            Log.d("FirebaseStorage", "progress: ${progress * 100f} %")
+        }.addOnSuccessListener { taskSnapshot ->
+            storageRef.downloadUrl.addOnSuccessListener { uri ->
+                imageUploadProgress = null
+                Log.d("FirebaseStorage", "Image uploaded successfully. URL: $uri")
+                onUploadSuccess(uri.toString())
+            }
+        }.addOnFailureListener { e ->
+            imageUploadProgress = null
+            Log.e("FirebaseStorage", "Failed to get download URL: ${e.message}")
+            onUploadFail()
         }
     }
 
@@ -76,6 +186,7 @@ class CalorieAppViewModel : ViewModel() {
 
 /** Class to store the current meal being logged */
 class InProgressMeal() {
+    var photo by mutableStateOf<Bitmap?>(null)
     var mealName by mutableStateOf("")
     var mealType by mutableStateOf("")
     var ingredients = mutableStateListOf<MealIngredient>() // initially empty
@@ -87,7 +198,7 @@ class InProgressMeal() {
     val totalCarbs: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
 
     fun isValid(): Boolean {
-        if(mealName.isNotEmpty() && mealType.isNotEmpty() && ingredients.isNotEmpty()) {
+        if(mealName.isNotEmpty() && ingredients.isNotEmpty()) {
             return (!(ingredients.map { it.isValid() }.contains(false)))
         }
         return false
@@ -96,6 +207,7 @@ class InProgressMeal() {
     fun reset() {
         mealName = ""
         mealType = ""
+        photo = null
         ingredients.clear()
     }
 }

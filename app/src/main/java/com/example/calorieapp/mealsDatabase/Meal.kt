@@ -15,6 +15,6 @@ data class Meal(
     val totalProtein: Int = 0,
     val totalCarbs: Int = 0,
     val totalFat: Int = 0,
-    val photo: ByteArray?,
+    var photo: ByteArray?,
     var photoUrl: String?
 )
