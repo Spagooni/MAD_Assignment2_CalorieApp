@@ -1,4 +1,4 @@
-package com.example.calorieapp
+package com.example.calorieapp.screens
 
 import android.content.res.Configuration
 import androidx.compose.foundation.Image
@@ -35,24 +35,31 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.rememberNavController
+import com.example.calorieapp.CalorieAppViewModel
+import com.example.calorieapp.Routes
+import com.example.calorieapp.general.InsetContent
+import com.example.calorieapp.previewHeightDp
+import com.example.calorieapp.previewWidthDp
 import com.example.calorieapp.ui.theme.CalorieAppTheme
 
 @Composable
-fun MainMenuScreen(navController: NavHostController) {
+fun MainMenuScreen(navController: NavHostController,
+                   shvm: CalorieAppViewModel = viewModel<CalorieAppViewModel>()
+) {
     val orientation = LocalConfiguration.current.orientation
     InsetContent {
         when (orientation) {
             Configuration.ORIENTATION_PORTRAIT ->
-                MainMenu_Portrait(navController = navController)
+                MainMenu_Portrait(navController = navController, shvm)
             else ->
-                MainMenu_Portrait(navController = navController)
+                MainMenu_Portrait(navController = navController, shvm)
         }
     }
 }
 
 
 @Composable
-fun MainMenu_Portrait(navController: NavHostController) {
+fun MainMenu_Portrait(navController: NavHostController, shvm: CalorieAppViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -61,14 +68,13 @@ fun MainMenu_Portrait(navController: NavHostController) {
         verticalArrangement = Arrangement.Center,
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        val viewModel = viewModel<CalorieAppViewModel>() // TODO put this in nav controller
-        val errorMessage by viewModel.errorMessage.collectAsState()
-        val loading by viewModel.loading.collectAsState()
+        val errorMessage by shvm.errorMessage.collectAsState()
+        val loading by shvm.loading.collectAsState()
 
         // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
         // TODO temporarily put this here until I find a home for it
         // Observe StateFlow as State
-        val calorieNinjasResponse by viewModel.calorieNinjasResponse.collectAsState()
+        val calorieNinjasResponse by shvm.calorieNinjasResponse.collectAsState()
         // search term
         var calorieNinjasQuery by remember { mutableStateOf("") }
         Column(
@@ -80,7 +86,7 @@ fun MainMenu_Portrait(navController: NavHostController) {
 
             // Trigger the network call in the ViewModel
             Button(onClick = {
-                viewModel.fetchCalories(calorieNinjasQuery)
+                shvm.fetchCalories(calorieNinjasQuery)
             }) { Text("Get nutrition info") }
 
             // Show loading indicator
@@ -98,77 +104,17 @@ fun MainMenu_Portrait(navController: NavHostController) {
                 Text(text = "items: ${response.items.size}")
                 response.items.forEach { item ->
                     val servingSize = item.servingSizeGrams
-                    val kcal = item.caloriesPerServe / servingSize
-                    val fats = item.fatTotalPerServe / servingSize
-                    val protein = item.proteinPerServe / servingSize
-                    val carbs = item.carbsPerServe / servingSize
+                    val kcal = item.caloriesPerServe / (servingSize / 100.0)
+                    val fats = item.fatTotalPerServe / (servingSize / 100.0)
+                    val protein = item.proteinPerServe / (servingSize / 100.0)
+                    val carbs = item.carbsPerServe / (servingSize / 100.0)
                     Text(text = "${item.name}: \n" +
-                            "$kcal kcal / g\n" +
-                            "$fats g fats / g\n" +
-                            "$protein g protein / g\n" +
-                            "$carbs g carbs / g\n"
+                            "$kcal kcal / 100g\n" +
+                            "$fats g fats / 100g\n" +
+                            "$protein g protein / 100g\n" +
+                            "$carbs g carbs / 100g\n"
                     )
                 }
-            }
-        }
-        HorizontalDivider(thickness=1.dp, color=Color.Gray)
-        // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-        // TODO %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-        // TODO temporarily put this here until I find a home for it
-        // Observe StateFlow as State
-        val imageBitmap by viewModel.imageBitmap.collectAsState()
-        // search term
-        var searchKey by remember { mutableStateOf("") }
-        Column(
-            modifier = Modifier.fillMaxSize(),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
-        ) {
-            BasicTextField(
-                value = searchKey,
-                onValueChange = { searchKey = it },
-                modifier = Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-                decorationBox = { innerTextField ->
-                    Box(
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                    ) {
-                        if (searchKey.isEmpty()) {
-                            Text(text = "Enter search keyword")
-                        }
-                        innerTextField()
-                    }
-                }
-            )
-
-            // Trigger the network call in the ViewModel
-            Button(onClick = { viewModel.fetchImage("23319229-94b52a4727158e1dc3fd5f2db", searchKey)
-            }) { Text("Load Image") }
-
-            // // Show loading indicator
-            // if (loading) {CircularProgressIndicator(modifier = Modifier.padding(16.dp)) }
-            //
-            // // Show error message if any
-            // errorMessage?.let { if (it.isNotEmpty()) {
-            //         Text(text = it,
-            //             color = MaterialTheme.colorScheme.error,
-            //             modifier = Modifier.padding(16.dp))
-            // }}
-
-            // Show image if available
-            imageBitmap?.let { bitmap ->
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Loaded Image",
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(300.dp)
-                        .padding(16.dp)
-                )
             }
         }
         HorizontalDivider(thickness=1.dp, color=Color.Gray)
@@ -179,7 +125,7 @@ fun MainMenu_Portrait(navController: NavHostController) {
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Bold
             ),
-            color = Color.White
+            // color = Color.White
         )
         Button(
             onClick = { navController.navigate(Routes.LOG_MEAL) },
@@ -192,12 +138,6 @@ fun MainMenu_Portrait(navController: NavHostController) {
             modifier = Modifier.padding(top = 16.dp)
         ) {
             Text(text = "Logged Meals")
-        }
-        Button(
-            onClick = { navController.navigate(Routes.PROFILES) },
-            modifier = Modifier.padding(top = 16.dp)
-        ) {
-            Text(text = "Profiles")
         }
     }
 }

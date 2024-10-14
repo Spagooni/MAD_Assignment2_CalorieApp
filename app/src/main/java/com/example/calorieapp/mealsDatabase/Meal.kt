@@ -1,4 +1,4 @@
-package com.example.calorieapp
+package com.example.calorieapp.mealsDatabase
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity

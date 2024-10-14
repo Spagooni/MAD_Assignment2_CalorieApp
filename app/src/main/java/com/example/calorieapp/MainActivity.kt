@@ -35,11 +35,6 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-const val previewWidthDp = 360
-const val previewHeightDp = 740
-const val previewTabletWidthDp = 800
-const val previewTabletHeightDp = 1280
-
 // **********************************************************************************
 // Previews:         (Ignoring large screens for now)
 // **********************************************************************************
@@ -49,6 +44,11 @@ fun CalorieAppPreview() {
         AppNavigation()
     }
 }
+
+const val previewWidthDp = 360
+const val previewHeightDp = 740
+const val previewTabletWidthDp = 800
+const val previewTabletHeightDp = 1280
 
 @Preview(name = "5-inch Device Portrait",
     widthDp = previewWidthDp, heightDp = previewHeightDp, showBackground = true)

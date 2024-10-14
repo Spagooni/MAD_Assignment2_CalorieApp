@@ -1,4 +1,4 @@
-package com.example.calorieapp
+package com.example.calorieapp.mealsDatabase
 
 import androidx.room.Dao
 import androidx.room.Delete

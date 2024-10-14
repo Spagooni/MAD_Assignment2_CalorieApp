@@ -17,16 +17,16 @@ object RetrofitInstance {
         calorieNinjasHitRetrofit.create(CalorieNinjasAPICalls::class.java)
     }
 
-    /**
-     * Pixabay retrofit (from lectures)
-     */
-    private val pixabayRetrofit by lazy {
-        Retrofit.Builder()
-            .baseUrl("https://pixabay.com/") // Replace with your API base URL
-            .addConverterFactory(GsonConverterFactory.create())
-            .build()
-    }
-    val pixabayAPI: PixabayAPICalls by lazy {
-        pixabayRetrofit.create(PixabayAPICalls::class.java)
-    }
+    // /**
+    //  * Pixabay retrofit (from lectures)
+    //  */
+    // private val pixabayRetrofit by lazy {
+    //     Retrofit.Builder()
+    //         .baseUrl("https://pixabay.com/") // Replace with your API base URL
+    //         .addConverterFactory(GsonConverterFactory.create())
+    //         .build()
+    // }
+    // val pixabayAPI: PixabayAPICalls by lazy {
+    //     pixabayRetrofit.create(PixabayAPICalls::class.java)
+    // }
 }
