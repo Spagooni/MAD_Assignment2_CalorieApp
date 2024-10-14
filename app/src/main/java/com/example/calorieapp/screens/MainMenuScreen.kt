@@ -104,15 +104,15 @@ fun MainMenu_Portrait(navController: NavHostController, shvm: CalorieAppViewMode
                 Text(text = "items: ${response.items.size}")
                 response.items.forEach { item ->
                     val servingSize = item.servingSizeGrams
-                    val kcal = item.caloriesPerServe / servingSize
-                    val fats = item.fatTotalPerServe / servingSize
-                    val protein = item.proteinPerServe / servingSize
-                    val carbs = item.carbsPerServe / servingSize
+                    val kcal = item.caloriesPerServe / (servingSize / 100.0)
+                    val fats = item.fatTotalPerServe / (servingSize / 100.0)
+                    val protein = item.proteinPerServe / (servingSize / 100.0)
+                    val carbs = item.carbsPerServe / (servingSize / 100.0)
                     Text(text = "${item.name}: \n" +
-                            "$kcal kcal / g\n" +
-                            "$fats g fats / g\n" +
-                            "$protein g protein / g\n" +
-                            "$carbs g carbs / g\n"
+                            "$kcal kcal / 100g\n" +
+                            "$fats g fats / 100g\n" +
+                            "$protein g protein / 100g\n" +
+                            "$carbs g carbs / 100g\n"
                     )
                 }
             }
@@ -125,7 +125,7 @@ fun MainMenu_Portrait(navController: NavHostController, shvm: CalorieAppViewMode
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Bold
             ),
-            color = Color.White
+            // color = Color.White
         )
         Button(
             onClick = { navController.navigate(Routes.LOG_MEAL) },

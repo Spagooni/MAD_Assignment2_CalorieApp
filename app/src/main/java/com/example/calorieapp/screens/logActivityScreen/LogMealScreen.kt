@@ -1,6 +1,7 @@
 package com.example.calorieapp.screens.logActivityScreen
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -8,15 +9,16 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.result.launch
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -28,7 +30,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
@@ -42,6 +43,13 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorieapp.CalorieAppViewModel
 import com.example.calorieapp.InProgressMeal
 import com.example.calorieapp.MealIngredient
@@ -49,147 +57,146 @@ import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 
 @Composable
-fun LogScreen(shvm: CalorieAppViewModel) {
+fun LogMealScreen(shvm: CalorieAppViewModel) {
+    val orientation = LocalConfiguration.current.orientation
+    InsetContent {
+        when (orientation) {
+            Configuration.ORIENTATION_PORTRAIT ->
+                LogMealScreen_Portrait(shvm)
+            else ->
+                LogMealScreen_Portrait(shvm)
+        }
+    }
+}
+
+@Preview
+@Composable
+fun LogMealScreen_Preview() {
+    val shvm = viewModel<CalorieAppViewModel>()
+    shvm.currentMeal.ingredients.add(MealIngredient()) // add empty ingredient
+    LogMealScreen(shvm)
+}
+
+@Composable
+fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
     val context = LocalContext.current
     val meal = shvm.currentMeal
+    // val loadingAPICall by shvm.loading.collectAsState()
 
-    InsetContent {
-        Box(
-            modifier = Modifier.fillMaxSize(),
-            contentAlignment = Alignment.Center
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            text = "Log a Meal",
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            // color = Color.White,
+        )
+
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Column(
+            TextField(
+                value = meal.mealName,
+                onValueChange = { meal.mealName = it },
+                label = { Text("Meal Name") },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(25.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text(
-                    text = "Log a Meal",
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    color = Color.White,
-                    modifier = Modifier.padding(bottom = 16.dp)
-                )
+                    .weight(1f)
+            )
+            TextField(
+                value = meal.mealType,
+                onValueChange = { meal.mealType = it },
+                label = { Text("Meal Type") },
+                modifier = Modifier
+                    .weight(1f)
+            )
+        }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    TextField(
-                        value = meal.mealName,
-                        onValueChange = { meal.mealName = it },
-                        label = { Text("Meal Name") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                    )
-                    TextField(
-                        value = meal.mealType,
-                        onValueChange = { meal.mealType = it },
-                        label = { Text("Meal Type") },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 8.dp)
-                    )
-                }
-
-                Text(
-                    text = "TOTAL: " +
-                            "weight: ${meal.totalWeight}, " +
-                            "Calories: ${meal.totalCalories}, " +
-                            "Fats: ${meal.totalFats}, " +
-                            "protein: ${meal.totalProtein}, " +
-                            "carbs: ${meal.totalCarbs}",
-                    modifier = Modifier.padding(top = 16.dp),
-                    style = MaterialTheme.typography.bodyLarge.copy(
-                        fontWeight = FontWeight.Bold
-                    ),
-                    // color = Color.White
-                )
-
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 475.dp)
-                        .padding(top = 16.dp)
-                ) {
-                    items(meal.ingredients) { ingredient ->
-                        IngredientInput(
-                            ingredient = ingredient,
-                            onAutofill = {ingredient.autofill()},
-                            onDelete = {
-                                meal.ingredients.remove(ingredient)
-                            }
-                        )
-                    }
-                }
-
-                Spacer(modifier = Modifier.weight(1f))
-
-                Button(
-                    onClick = {
-                        meal.ingredients.add(MealIngredient())
-                        // calculateTotals()
+        Text(modifier = Modifier.padding(horizontal = 10.dp),
+            text = "TOTAL: " +
+                    "weight: ${meal.totalWeight}, " +
+                    "Calories: ${meal.totalCalories}, " +
+                    "Fats: ${meal.totalFats}, " +
+                    "protein: ${meal.totalProtein}, " +
+                    "carbs: ${meal.totalCarbs}",
+            style = MaterialTheme.typography.bodyLarge.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            // color = Color.White
+        )
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 90000.dp)
+        ) {
+            items(meal.ingredients) { ingredient ->
+                IngredientInputCard(
+                    ingredient = ingredient,
+                    onAutofill = {
+                        shvm.autofillIngredient(ingredient)
                     },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 16.dp)
-                ) {
-                    Text("Add Ingredient ")
-                }
-
-                var mealPhoto by remember { mutableStateOf<Bitmap?>(null) }
-
-                val cameraLauncher = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.TakePicturePreview()
-                ) { bitmap: Bitmap? ->
-                    mealPhoto = bitmap
-                }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Button(
-                        onClick = { cameraLauncher.launch() },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(end = 8.dp)
-                    ) {
-                        Text("Take Picture")
-                    }
-
-                    Button(
-                        onClick = {
-                            if (meal.isValid()) {
-                                addToDatabase(context, meal, mealPhoto) { progress -> }
-                                meal.reset()
-                            }
-                        },
-                        modifier = Modifier
-                            .weight(1f)
-                            .padding(start = 8.dp)
-                    ) {
-                        Text("Add to Database")
-                    }
-                }
-
-                mealPhoto?.let { bitmap ->
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Captured Image",
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(250.dp)
-                            .padding(vertical = 16.dp)
-                    )
-                }
+                    onDelete = {
+                        meal.ingredients.remove(ingredient)
+                    },
+                    loading = ingredient.isLoading,
+                )
             }
         }
+
+        var mealPhoto by remember { mutableStateOf<Bitmap?>(null) }
+
+        val cameraLauncher = rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.TakePicturePreview()
+        ) { bitmap: Bitmap? ->
+            mealPhoto = bitmap
+        }
+
+        Column() {
+            Button(onClick = {
+                meal.ingredients.add(MealIngredient())
+            },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("Add Ingredient ") }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+            Button(
+                onClick = { cameraLauncher.launch() },
+                modifier = Modifier.weight(1f)
+            ) { Text("Take Picture") }
+
+            Button(onClick = {
+                if (meal.isValid()) {
+                    addToDatabase(context, meal, mealPhoto) { progress -> }
+                    meal.reset()
+                }},
+                modifier = Modifier.weight(1f)
+            ) { Text("Add to Database") }
+        }
+        }
+
+        mealPhoto?.let { bitmap ->
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Captured Image",
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(250.dp)
+                    .padding(vertical = 16.dp)
+            )
+        }
+
+        Spacer(modifier = Modifier.size(50.dp)) // space at the bottom of the scroll
     }
 }
 

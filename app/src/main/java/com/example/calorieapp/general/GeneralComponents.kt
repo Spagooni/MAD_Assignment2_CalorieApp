@@ -49,6 +49,7 @@ fun NumberField(
     onValueChange: (String) -> Unit,
     label: @Composable() (() -> Unit)? = null,
     modifier: Modifier,
+    enabled: Boolean = true,
 ) {
     TextField(
         value = value,
@@ -62,6 +63,7 @@ fun NumberField(
                 else -> it})
         },
         label = label,
-        modifier = modifier
+        modifier = modifier,
+        enabled = enabled,
     )
 }
