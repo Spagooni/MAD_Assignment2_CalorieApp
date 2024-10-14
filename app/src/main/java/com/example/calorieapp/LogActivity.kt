@@ -472,6 +472,10 @@ fun addToDatabase(
     val totalCarbs = ingredients.sumOf { it.carbsPerGram.toInt() }
     val totalFat = ingredients.sumOf { it.fatPerGram.toInt() }
 
+    ingredients.forEach { ingredient ->
+        Log.d("Ingredients", "Ingredient: ${ingredient.name}, Calories: ${ingredient.caloriesPerGram}, Weight: ${ingredient.weight}, Protein: ${ingredient.proteinPerGram}, Carbs: ${ingredient.carbsPerGram}, Fat: ${ingredient.fatPerGram}")
+    }
+
     val ingredientsString = ingredients.joinToString(", ") { it.name }
 
     val newMeal = Meal(
@@ -498,22 +502,25 @@ fun addToDatabase(
 
     if (mealImage != null) {
         uploadImageToFirebase(mealName, mealImage, { downloadUrl ->
-            val newMeal = Meal(name = mealName, calories = 1, photo = imageByteArray, photoUrl = downloadUrl)
+            val newMealWithUrl = Meal(
+                name = mealName,
+                calories = totalCalories,
+                photo = imageByteArray,
+                photoUrl = downloadUrl
+            )
 
             CoroutineScope(Dispatchers.IO).launch {
                 try {
-                    db.mealDAO().insert(newMeal)
+                    db.mealDAO().insert(newMealWithUrl)
                     Log.d("Database", "Meal inserted with image URL: $downloadUrl")
                 } catch (e: Exception) {
-                    Log.e("DatabaseError", "Error inserting meal: ${e.message}")
+                    Log.e("DatabaseError", "Error inserting meal with image URL: ${e.message}")
                 }
             }
         }, { progress ->
             onProgress(progress)
         })
     } else {
-        val newMeal = Meal(name = mealName, calories = 1, photo = imageByteArray, photoUrl = null)
-
         CoroutineScope(Dispatchers.IO).launch {
             try {
                 db.mealDAO().insert(newMeal)
@@ -524,6 +531,7 @@ fun addToDatabase(
         }
     }
 }
+
 
 
 fun uploadImageToFirebase(mealName: String, mealImage: Bitmap, onSuccess: (String) -> Unit, onProgress: (Float) -> Unit) {
