@@ -170,19 +170,21 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-            Button(
-                onClick = { cameraLauncher.launch() },
-                modifier = Modifier.weight(1f)
-            ) { Text("Take Picture") }
+                Button(
+                    onClick = { cameraLauncher.launch() },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Take Picture") }
 
-            Button(onClick = {
-                if (meal.isValid()) {
-                    addToDatabase(context, meal, mealPhoto) { progress -> }
-                    meal.reset()
-                }},
-                modifier = Modifier.weight(1f)
-            ) { Text("Add to Database") }
-        }
+                Button(
+                    onClick = {
+                        if (meal.isValid()) {
+                            addToDatabase(context, meal, mealPhoto) { progress -> }
+                            meal.reset()
+                        }
+                    },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Add to Database") }
+            }
         }
 
         mealPhoto?.let { bitmap ->
