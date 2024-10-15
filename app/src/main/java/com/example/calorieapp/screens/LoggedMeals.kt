@@ -1,6 +1,7 @@
 package com.example.calorieapp.screens
 
 import android.content.Context
+import android.content.res.Configuration
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
@@ -33,8 +34,11 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.sp
@@ -45,6 +49,21 @@ import com.example.calorieapp.mealsDatabase.byteArrayToBitmap
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.HttpURLConnection
+
+const val dailyCaloriesLimit = 2000f
+val sampleMeal = Meal(
+    name = "test name",
+    mealType = "lunch",
+    date = "1/12/2000",
+    ingredients = "ham, cheese",
+    calories = 100,
+    totalWeight = 100,
+    totalProtein = 100,
+    totalCarbs = 100,
+    totalFat = 100,
+    photo = null,
+    photoUrl = null
+)
 
 @Composable
 fun LoggedMealsScreen() {
@@ -59,15 +78,33 @@ fun LoggedMealsScreen() {
             Log.e("DatabaseError", "Error fetching contacts", e)
         }
     }
+    /** Group meals by date */
+    val groupedMeals = mealList.value.groupBy { meal ->
+        meal.date
+    }
     
     InsetContent {
-        LoggedMealsScreen_Portrait(mealList = mealList)
+        LoggedMealsScreen_Portrait(groupedMeals = groupedMeals)
+    }
+}
+
+@Preview
+@Composable
+fun LoggedMealsScreen_Preview() {
+    InsetContent {
+        /** Group meals by date */
+        val groupedMeals = listOf(sampleMeal).groupBy { meal ->
+            meal.date
+        }
+        LoggedMealsScreen_Portrait(groupedMeals = groupedMeals)
     }
 }
 
 
 @Composable
-fun LoggedMealsScreen_Portrait(mealList: MutableState<List<Meal>>) {
+fun LoggedMealsScreen_Portrait(groupedMeals: Map<String, List<Meal>>) {
+    val orientation = LocalConfiguration.current.orientation
+    val isPortrait = (orientation == Configuration.ORIENTATION_PORTRAIT)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -79,7 +116,7 @@ fun LoggedMealsScreen_Portrait(mealList: MutableState<List<Meal>>) {
         Text(
             modifier = Modifier.padding(20.dp),
             text = "Logged Meals",
-            style = MaterialTheme.typography.bodyLarge.copy(
+            style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold
             ),
             // color = Color.White
@@ -87,15 +124,44 @@ fun LoggedMealsScreen_Portrait(mealList: MutableState<List<Meal>>) {
         LazyColumn(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            items(mealList.value) {
-                LoggedMealCard(meal = it)
+            // Loop through each date group
+            groupedMeals.forEach { (date, mealsForDate) ->
+                val totalCalories = mealsForDate.sumOf { it.calories }
+                val caloriesPercent =
+                    "%.1f".format(100 * totalCalories / dailyCaloriesLimit)
+                item {
+                    Column {
+                        Text(text = date,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.SemiBold)
+                        )// Header for the date
+
+                        Text(text = "Total Calories: $totalCalories kcal\n" +
+                                    "($caloriesPercent% of daily total = " +
+                                    "${dailyCaloriesLimit.toInt()} kcal)"
+                        )
+                    }
+                }
+                items(mealsForDate) { meal -> // Meals for that date
+                    LoggedMealCard(meal = meal, isPortrait = isPortrait)
+                }
+                item { HorizontalDivider(color = Color.Black) }
             }
+            item { Spacer(modifier = Modifier.size(50.dp))}
         }
     }
 }
 
+@Preview
 @Composable
-fun LoggedMealCard(meal: Meal) {
+fun LoggedMealCard_Preview() {
+    InsetContent {
+        LoggedMealCard(meal = sampleMeal, isPortrait = true)
+    }
+}
+
+@Composable
+fun LoggedMealCard(meal: Meal, isPortrait: Boolean) {
     Card(
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp),
@@ -108,28 +174,10 @@ fun LoggedMealCard(meal: Meal) {
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            Column(
-                verticalArrangement = Arrangement.Center
-            ) {
-                meal.photo?.let { byteArray ->
-                    val bitmap = byteArrayToBitmap(byteArray)
-                    Text(text = "From Database: ",
-                        fontSize = 10.sp)
-                    Image(
-                        bitmap = bitmap.asImageBitmap(),
-                        contentDescription = "Meal Image from Database",
-                        modifier = Modifier
-                            .size(80.dp)
-                            .padding(end = 16.dp)
-                    )
-                }
-
-                meal.photoUrl?.let { uriString ->
-                    val photoUri = Uri.parse(uriString)
-                    Text(text = "From Firebase: ",
-                        fontSize = 10.sp)
-                    DisplayImageFromUri(photoUri)
-                }
+            if (isPortrait) {
+                verticalPhotos(meal = meal)
+            } else {
+                horizontalPhotos(meal = meal)
             }
 
             Column(
@@ -200,6 +248,58 @@ fun LoggedMealCard(meal: Meal) {
                     )
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun horizontalPhotos(meal: Meal) {
+    Row {
+        meal.photo?.let { byteArray ->
+            val bitmap = byteArrayToBitmap(byteArray)
+            Text(text = "From Database: ",
+                fontSize = 10.sp)
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Meal Image from Database",
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(end = 16.dp)
+            )
+        }
+
+        meal.photoUrl?.let { uriString ->
+            val photoUri = Uri.parse(uriString)
+            Text(text = "From Firebase: ",
+                fontSize = 10.sp)
+            DisplayImageFromUri(photoUri)
+        }
+    }
+}
+
+@Composable
+private fun verticalPhotos(meal: Meal) {
+    Column(
+        verticalArrangement = Arrangement.Center
+    ) {
+        meal.photo?.let { byteArray ->
+            val bitmap = byteArrayToBitmap(byteArray)
+            Text(text = "From Database: ",
+                fontSize = 10.sp)
+            Image(
+                bitmap = bitmap.asImageBitmap(),
+                contentDescription = "Meal Image from Database",
+                modifier = Modifier
+                    .size(80.dp)
+                    .padding(end = 16.dp)
+            )
+        }
+
+        meal.photoUrl?.let { uriString ->
+            val photoUri = Uri.parse(uriString)
+            Text(text = "From Firebase: ",
+                fontSize = 10.sp)
+            DisplayImageFromUri(photoUri)
         }
     }
 }
