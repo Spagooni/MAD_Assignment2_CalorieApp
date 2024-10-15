@@ -10,7 +10,7 @@ import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.launch
 import java.io.ByteArrayOutputStream
 
-@Database(entities = [Meal::class], version = 5)
+@Database(entities = [Meal::class], version = 6)
 abstract class MealDatabase : RoomDatabase() {
     abstract fun mealDAO(): MealDAO
 

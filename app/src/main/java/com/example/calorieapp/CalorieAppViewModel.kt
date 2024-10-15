@@ -2,7 +2,9 @@ package com.example.calorieapp
 
 import android.content.Context
 import android.graphics.Bitmap
+import android.os.Build
 import android.util.Log
+import androidx.annotation.RequiresApi
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,6 +24,9 @@ import com.google.firebase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.util.Date
 
 
 class CalorieAppViewModel : ViewModel() {
@@ -61,6 +66,7 @@ class CalorieAppViewModel : ViewModel() {
      * - insertingIntoDB (true during insert AND upload if photo available)
      * - imageUploadProgress (from 0.0 to 1.0 and null when not uploading)
      */
+    @RequiresApi(Build.VERSION_CODES.O)
     fun saveMealToDB(
         successToast : () -> Unit,
     ) {
@@ -80,10 +86,15 @@ class CalorieAppViewModel : ViewModel() {
         val ingredientsString = currentMeal.ingredients
             .joinToString(", ") { it.name }
 
+        val formatter = DateTimeFormatter.ISO_LOCAL_DATE
+        val currentDate = LocalDate.now().format(formatter)
+
+
         /** create new meal with no photo url */
         val newMeal = Meal(
             name = currentMeal.mealName,
             mealType = currentMeal.mealType,
+            date = currentDate,
             ingredients = ingredientsString,
             calories = currentMeal.totalCalories.toInt(),
             totalWeight = currentMeal.totalWeight.toInt(),
@@ -193,9 +204,9 @@ class InProgressMeal() {
 
     val totalWeight: Double get() = ingredients.sumOf { it.weight.toDoubleOrNull() ?: 0.0 }
     val totalCalories: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
-    val totalProtein: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
-    val totalFats: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
-    val totalCarbs: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }
+    val totalProtein: Double get() = ingredients.sumOf { it.totalProtein.toDoubleOrNull() ?: 0.0 }
+    val totalFats: Double get() = ingredients.sumOf { it.totalFats.toDoubleOrNull() ?: 0.0 }
+    val totalCarbs: Double get() = ingredients.sumOf { it.totalCarbs.toDoubleOrNull() ?: 0.0 }
 
     fun isValid(): Boolean {
         if(mealName.isNotEmpty() && ingredients.isNotEmpty()) {
