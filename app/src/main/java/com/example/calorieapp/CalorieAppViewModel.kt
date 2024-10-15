@@ -1,6 +1,5 @@
 package com.example.calorieapp
 
-import android.content.Context
 import android.graphics.Bitmap
 import android.os.Build
 import android.util.Log
@@ -13,20 +12,17 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.calorieapp.mealsDatabase.Meal
 import com.example.calorieapp.mealsDatabase.MealDAO
-import com.example.calorieapp.mealsDatabase.MealDatabase
 import com.example.calorieapp.mealsDatabase.bitmapToByteArray
 import com.example.calorieapp.mealsDatabase.upscaleBitmap
 import com.example.calorieapp.remoteAPIs.CalorieNinjasAPICalls
 import com.example.calorieapp.remoteAPIs.RetrofitInstance
 import com.google.firebase.Firebase
-import com.google.firebase.storage.FirebaseStorage
 import com.google.firebase.storage.storage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import java.util.Date
 
 
 class CalorieAppViewModel : ViewModel() {
@@ -86,15 +82,11 @@ class CalorieAppViewModel : ViewModel() {
         val ingredientsString = currentMeal.ingredients
             .joinToString(", ") { it.name }
 
-        val formatter = DateTimeFormatter.ISO_LOCAL_DATE
-        val currentDate = LocalDate.now().format(formatter)
-
-
         /** create new meal with no photo url */
         val newMeal = Meal(
             name = currentMeal.mealName,
             mealType = currentMeal.mealType,
-            date = currentDate,
+            date = currentMeal.dateString,
             ingredients = ingredientsString,
             calories = currentMeal.totalCalories.toInt(),
             totalWeight = currentMeal.totalWeight.toInt(),
@@ -201,6 +193,11 @@ class InProgressMeal() {
     var mealName by mutableStateOf("")
     var mealType by mutableStateOf("")
     var ingredients = mutableStateListOf<MealIngredient>() // initially empty
+
+    // for date
+    private val formatter: DateTimeFormatter = DateTimeFormatter.ISO_LOCAL_DATE
+    var date by mutableStateOf<LocalDate>(LocalDate.now())
+    val dateString: String get() = date.format(formatter)
 
     val totalWeight: Double get() = ingredients.sumOf { it.weight.toDoubleOrNull() ?: 0.0 }
     val totalCalories: Double get() = ingredients.sumOf { it.totalKcal.toDoubleOrNull() ?: 0.0 }

@@ -1,9 +1,8 @@
-package com.example.calorieapp.screens.logActivityScreen
+package com.example.calorieapp.screens.logMealScreen
 
-import android.content.Context
+import android.app.DatePickerDialog
 import android.content.res.Configuration
 import android.graphics.Bitmap
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,7 +12,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -26,40 +24,29 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
-import com.example.calorieapp.mealsDatabase.Meal
 import com.example.calorieapp.general.InsetContent
-import com.example.calorieapp.mealsDatabase.MealDatabase
-import com.google.firebase.Firebase
-import com.google.firebase.storage.storage
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LinearProgressIndicator
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorieapp.CalorieAppViewModel
-import com.example.calorieapp.InProgressMeal
 import com.example.calorieapp.MealIngredient
-import com.example.calorieapp.mealsDatabase.bitmapToByteArray
-import kotlinx.coroutines.launch
-import java.io.ByteArrayOutputStream
+import java.time.LocalDate
 
 @Composable
 fun LogMealScreen(shvm: CalorieAppViewModel) {
@@ -88,6 +75,8 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
     val context = LocalContext.current
     val meal = shvm.currentMeal
 
+    var showDatePicker by remember { mutableStateOf(false) }
+
     // for camera
     val cameraLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.TakePicturePreview()
@@ -102,13 +91,41 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(
+        Text(modifier = Modifier.padding(top = 20.dp),
             text = "Log a Meal",
-            style = MaterialTheme.typography.bodyLarge.copy(
-                fontWeight = FontWeight.Bold
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+
             ),
             // color = Color.White,
         )
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(modifier = Modifier.padding(end = 20.dp),
+                text = "Date: ${shvm.currentMeal.dateString}",
+                style = MaterialTheme.typography.bodyLarge.copy(
+                    fontWeight = FontWeight.Bold
+                )
+            )
+            Button(onClick = { showDatePicker = true }) {
+                Text(text = "Change Date")
+            }
+        }
+
+        // Show the DatePickerDialog when requested
+        if (showDatePicker) {
+            DatePickerDialog(
+                context,
+                { _, year, month, dayOfMonth ->
+                    // Handle the date selection
+                    val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+                    meal.date = selectedDate // Update the selected date
+                    showDatePicker = false // Close the dialog
+                },
+                meal.date.year,
+                meal.date.monthValue - 1,
+                meal.date.dayOfMonth
+            ).show()
+        }
 
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -180,7 +197,7 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
                     onClick = {
                         if (meal.isValid()) {
                             val mealName = meal.mealName // snapshot in case it changes
-                            val calories = meal.totalCalories
+                            val calories = meal.totalCalories.toInt()
                             shvm.saveMealToDB(successToast = {
                                 Toast.makeText(context,
                                     "Saved meal: $mealName, ($calories kcal)",
@@ -197,7 +214,9 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
                 ) {
                     if (shvm.insertingIntoDB) {
                         CircularProgressIndicator(
-                            modifier = Modifier.fillMaxHeight().size(25.dp))
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .size(25.dp))
                     } else {
                         Text("Add to Database")
                     }
@@ -220,7 +239,9 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             Text(text = "Uploading image. Progress: ${(progress * 100).toInt()}%")
             LinearProgressIndicator(
                 progress = { progress },
-                modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 16.dp),
             )
         }
 

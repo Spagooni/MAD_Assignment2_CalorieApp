@@ -7,7 +7,7 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import com.example.calorieapp.mealsDatabase.MealDatabase
-import com.example.calorieapp.screens.logActivityScreen.LogMealScreen
+import com.example.calorieapp.screens.logMealScreen.LogMealScreen
 import com.example.calorieapp.screens.LoggedMealsScreen
 import com.example.calorieapp.screens.MainMenuScreen
 
