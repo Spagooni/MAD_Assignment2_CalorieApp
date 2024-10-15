@@ -56,7 +56,7 @@ fun LogMealScreen(shvm: CalorieAppViewModel) {
             Configuration.ORIENTATION_PORTRAIT ->
                 LogMealScreen_Portrait(shvm)
             else ->
-                LogMealScreen_Portrait(shvm)
+                LogMealScreen_Landscape(shvm)
         }
     }
 }
@@ -71,36 +71,35 @@ fun LogMealScreen_Preview() {
 }
 
 @Composable
-fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
+/** purely for readability */
+private fun LogMealScreenHeader(shvm: CalorieAppViewModel) {
     val context = LocalContext.current
     val meal = shvm.currentMeal
 
     var showDatePicker by remember { mutableStateOf(false) }
-
-    // for camera
-    val cameraLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.TakePicturePreview()
-    ) { bitmap: Bitmap? ->
-        meal.photo = bitmap
+    // Show the DatePickerDialog when requested
+    if (showDatePicker) {
+        DatePickerDialog(
+            context,
+            { _, year, month, dayOfMonth ->
+                // Handle the date selection
+                val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
+                meal.date = selectedDate // Update the selected date
+                showDatePicker = false // Close the dialog
+            },
+            meal.date.year,
+            meal.date.monthValue - 1,
+            meal.date.dayOfMonth
+        ).show()
     }
 
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(modifier = Modifier.padding(top = 20.dp),
-            text = "Log a Meal",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-
-            ),
-            // color = Color.White,
-        )
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(modifier = Modifier.padding(end = 20.dp),
+            Text(
+                modifier = Modifier.padding(end = 20.dp),
                 text = "Date: ${shvm.currentMeal.dateString}",
                 style = MaterialTheme.typography.bodyLarge.copy(
                     fontWeight = FontWeight.Bold
@@ -109,22 +108,6 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             Button(onClick = { showDatePicker = true }) {
                 Text(text = "Change Date")
             }
-        }
-
-        // Show the DatePickerDialog when requested
-        if (showDatePicker) {
-            DatePickerDialog(
-                context,
-                { _, year, month, dayOfMonth ->
-                    // Handle the date selection
-                    val selectedDate = LocalDate.of(year, month + 1, dayOfMonth)
-                    meal.date = selectedDate // Update the selected date
-                    showDatePicker = false // Close the dialog
-                },
-                meal.date.year,
-                meal.date.monthValue - 1,
-                meal.date.dayOfMonth
-            ).show()
         }
 
         Row(
@@ -148,7 +131,8 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             )
         }
 
-        Text(modifier = Modifier.padding(horizontal = 10.dp),
+        Text(
+            modifier = Modifier.padding(horizontal = 10.dp),
             text = "TOTAL: " +
                     "weight: ${meal.totalWeight}, " +
                     "Calories: ${meal.totalCalories}, " +
@@ -160,24 +144,27 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             ),
             // color = Color.White
         )
+    }
+}
 
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 90000.dp)
-        ) {
-            items(meal.ingredients) { ingredient ->
-                IngredientInputCard(
-                    ingredient = ingredient,
-                    onAutofill = { shvm.autofillIngredient(ingredient) },
-                    onDelete = { meal.ingredients.remove(ingredient) },
-                    loading = ingredient.isLoading,
-                )
-            }
-        }
+@Composable
+/** bottom buttons, camera launcher and loading bars */
+private fun LogMealScreenFooter(shvm: CalorieAppViewModel) {
+    val context = LocalContext.current
+    val meal = shvm.currentMeal
 
+    // for camera
+    val cameraLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.TakePicturePreview()
+    ) { bitmap: Bitmap? ->
+        meal.photo = bitmap
+    }
 
-        Column() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Column {
             Button(
                 onClick = { meal.ingredients.add(MealIngredient()) },
                 modifier = Modifier.fillMaxWidth(),
@@ -199,14 +186,18 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
                             val mealName = meal.mealName // snapshot in case it changes
                             val calories = meal.totalCalories.toInt()
                             shvm.saveMealToDB(successToast = {
-                                Toast.makeText(context,
+                                Toast.makeText(
+                                    context,
                                     "Saved meal: $mealName, ($calories kcal)",
-                                    Toast.LENGTH_SHORT).show()
+                                    Toast.LENGTH_SHORT
+                                ).show()
                             })
                         } else {
-                            Toast.makeText(context,
+                            Toast.makeText(
+                                context,
                                 "Provide meal name and a valid ingredient before saving",
-                                Toast.LENGTH_SHORT).show()
+                                Toast.LENGTH_SHORT
+                            ).show()
                         }
                     },
                     modifier = Modifier.weight(1f),
@@ -216,7 +207,8 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
                         CircularProgressIndicator(
                             modifier = Modifier
                                 .fillMaxHeight()
-                                .size(25.dp))
+                                .size(25.dp)
+                        )
                     } else {
                         Text("Add to Database")
                     }
@@ -246,5 +238,106 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
         }
 
         Spacer(modifier = Modifier.size(50.dp)) // space at the bottom of the scroll
+    }
+}
+
+@Composable
+fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
+    val meal = shvm.currentMeal
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            modifier = Modifier.padding(top = 20.dp),
+            text = "Log a Meal",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+
+                ),
+            // color = Color.White,
+        )
+
+        LogMealScreenHeader(shvm)
+
+        LazyColumn(
+            modifier = Modifier
+                .fillMaxWidth()
+                .heightIn(max = 90000.dp)
+        ) {
+            items(meal.ingredients) { ingredient ->
+                IngredientInputCard(
+                    ingredient = ingredient,
+                    onAutofill = { shvm.autofillIngredient(ingredient) },
+                    onDelete = { meal.ingredients.remove(ingredient) },
+                    loading = ingredient.isLoading,
+                )
+            }
+        }
+
+        LogMealScreenFooter(shvm)
+    }
+}
+
+@Composable
+fun LogMealScreen_Landscape(shvm: CalorieAppViewModel) {
+    val meal = shvm.currentMeal
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(horizontal = 40.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Text(
+            modifier = Modifier.padding(top = 5.dp),
+            text = "Log a Meal",
+            style = MaterialTheme.typography.titleLarge.copy(
+                fontWeight = FontWeight.Bold,
+
+                ),
+            // color = Color.White,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(20.dp)) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+
+                LogMealScreenHeader(shvm)
+                LogMealScreenFooter(shvm)
+            }
+
+            Column(
+                modifier = Modifier
+                    .weight(1.5f)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(max = 90000.dp)
+                ) {
+                    items(meal.ingredients) { ingredient ->
+                        IngredientInputCard(
+                            ingredient = ingredient,
+                            onAutofill = { shvm.autofillIngredient(ingredient) },
+                            onDelete = { meal.ingredients.remove(ingredient) },
+                            loading = ingredient.isLoading,
+                        )
+                    }
+                }
+            }
+        }
     }
 }

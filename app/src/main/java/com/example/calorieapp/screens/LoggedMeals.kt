@@ -35,6 +35,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.MutableState
 import androidx.compose.ui.layout.ContentScale
@@ -112,12 +114,12 @@ fun LoggedMealsScreen_Portrait(
         modifier = Modifier
             .fillMaxSize()
             .background(color = Color.LightGray)
-            .padding(25.dp),
+            .padding(horizontal = 25.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
         Text(
-            modifier = Modifier.padding(20.dp),
+            modifier = Modifier.padding(vertical = if (isPortrait) 20.dp else 5.dp),
             text = "Logged Meals",
             style = MaterialTheme.typography.titleLarge.copy(
                 fontWeight = FontWeight.Bold
@@ -150,7 +152,7 @@ fun LoggedMealsScreen_Portrait(
                 }
                 item { HorizontalDivider(color = Color.Black) }
             }
-            item { Spacer(modifier = Modifier.size(50.dp))}
+            item { Spacer(modifier = Modifier.size(75.dp))}
         }
     }
 }
@@ -339,7 +341,8 @@ fun DisplayImageFromUri(photoURI: Uri, imageCache: MutableMap<Uri, Bitmap?>) {
                 .size(80.dp)
                 .padding(end = 16.dp)
         )
-    } ?: Text(text = "Image not found", modifier = Modifier.size(80.dp))
+    } ?: CircularProgressIndicator(
+        modifier = Modifier.fillMaxHeight().size(25.dp))
 }
 
 suspend fun loadImageFromUri(context: Context, uri: Uri): Bitmap? {
