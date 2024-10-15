@@ -1,5 +1,9 @@
 package com.example.calorieapp.screens
 
+import android.content.Context
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.Uri
 import android.util.Log
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -30,10 +34,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.border
 import androidx.compose.runtime.MutableState
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.sp
 import com.example.calorieapp.mealsDatabase.Meal
 import com.example.calorieapp.general.InsetContent
 import com.example.calorieapp.mealsDatabase.MealDatabase
 import com.example.calorieapp.mealsDatabase.byteArrayToBitmap
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import java.net.HttpURLConnection
 
 @Composable
 fun LoggedMealsScreen() {
@@ -60,7 +71,7 @@ fun LoggedMealsScreen_Portrait(mealList: MutableState<List<Meal>>) {
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(color = Color.LightGray)
             .padding(25.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
@@ -91,40 +102,99 @@ fun LoggedMealCard(meal: Meal) {
         modifier = Modifier
             .fillMaxWidth()
             .border(width = 2.dp, color = Color.Black, shape = RoundedCornerShape(12.dp))
-            .background(MaterialTheme.colorScheme.surface)
     ) {
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(16.dp)
         ) {
-            meal.photo?.let { byteArray ->
-                val bitmap = byteArrayToBitmap(byteArray)
-                Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = "Meal Image",
-                    modifier = Modifier
-                        .size(80.dp)
-                        .padding(end = 16.dp)
-                )
-            }
             Column(
                 verticalArrangement = Arrangement.Center
             ) {
+                meal.photo?.let { byteArray ->
+                    val bitmap = byteArrayToBitmap(byteArray)
+                    Text(text = "From Database: ",
+                        fontSize = 10.sp)
+                    Image(
+                        bitmap = bitmap.asImageBitmap(),
+                        contentDescription = "Meal Image from Database",
+                        modifier = Modifier
+                            .size(80.dp)
+                            .padding(end = 16.dp)
+                    )
+                }
+
+                meal.photoUrl?.let { uriString ->
+                    val photoUri = Uri.parse(uriString)
+                    Text(text = "From Firebase: ",
+                        fontSize = 10.sp)
+                    DisplayImageFromUri(photoUri)
+                }
+            }
+
+            Column(
+                verticalArrangement = Arrangement.Center,
+                modifier = Modifier.padding(4.dp)
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                ) {
+                    Text(
+                        text = "Name: ${meal.name}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.Start
+                    )
+                    Text(
+                        text = " ${meal.date}",
+                        style = MaterialTheme.typography.bodyMedium.copy(
+                            fontWeight = FontWeight.Bold
+                        ),
+                        modifier = Modifier.weight(1f),
+                        textAlign = TextAlign.End
+                    )
+                }
                 Text(
-                    text = "Name: ${meal.name}",
+                    text = "Meal Type: ${meal.mealType}",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold
                     )
                 )
                 Text(
-                    text = "Calories: ${meal.calories}",
+                    text = "Calories: ${meal.calories} kCal",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = Color.Gray
                     )
                 )
                 Text(
-                    text = "PhotoURL: ${meal.photoUrl}",
+                    text = "Ingredients: ${meal.ingredients}",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.Gray
+                    )
+                )
+                Text(
+                    text = "Total Calories: ${meal.calories}g",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.Gray
+                    )
+                )
+                Text(
+                    text = "Total Carbs: ${meal.totalCarbs}g",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.Gray
+                    )
+                )
+                Text(
+                    text = "Total Protein: ${meal.totalProtein}g",
+                    style = MaterialTheme.typography.bodySmall.copy(
+                        color = Color.Gray
+                    )
+                )
+                Text(
+                    text = "Total Fat: ${meal.totalFat}g",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = Color.Gray
                     )
@@ -133,3 +203,54 @@ fun LoggedMealCard(meal: Meal) {
         }
     }
 }
+
+
+@Composable
+fun DisplayImageFromUri(photoURI: Uri?) {
+    val context = LocalContext.current
+    val imageState = remember { mutableStateOf<Bitmap?>(null) }
+
+    LaunchedEffect(photoURI) {
+        if (photoURI != null) {
+            try {
+                val bitmap = loadImageFromUri(context, photoURI)
+                imageState.value = bitmap
+            } catch (e: Exception) {
+                Log.e("ImageLoading", "Error loading image", e)
+            }
+        }
+    }
+
+    imageState.value?.let { bitmap ->
+        Image(
+            bitmap = bitmap.asImageBitmap(),
+            contentDescription = "Loaded Image",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .size(80.dp)
+                .padding(end = 16.dp)
+        )
+    } ?: Text(text = "Image not found", modifier = Modifier.size(80.dp))
+}
+
+suspend fun loadImageFromUri(context: Context, uri: Uri): Bitmap? {
+    return withContext(Dispatchers.IO) {
+        try {
+            if (uri.scheme == "https" || uri.scheme == "http") {
+                val connection = java.net.URL(uri.toString()).openConnection() as HttpURLConnection
+                connection.doInput = true
+                connection.connect()
+
+                val inputStream = connection.inputStream
+                BitmapFactory.decodeStream(inputStream)
+            } else {
+                val inputStream = context.contentResolver.openInputStream(uri)
+                BitmapFactory.decodeStream(inputStream)
+            }
+        } catch (e: Exception) {
+            Log.e("ImageError", "Error decoding image", e)
+            null
+        }
+    }
+}
+

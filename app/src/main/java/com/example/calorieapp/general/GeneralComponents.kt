@@ -10,6 +10,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.input.KeyboardType
 
 /**
@@ -23,7 +24,7 @@ fun InsetContent(
     Row(
         modifier = modifier
             .fillMaxSize()
-            .background(MaterialTheme.colorScheme.surface)
+            .background(color = Color.LightGray)
     ) {
         Spacer(modifier = Modifier.weight(0.1f))
         Column(modifier = Modifier.fillMaxSize().weight(2f)) {
