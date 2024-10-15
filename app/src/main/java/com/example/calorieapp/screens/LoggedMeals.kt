@@ -102,9 +102,12 @@ fun LoggedMealsScreen_Preview() {
 
 
 @Composable
-fun LoggedMealsScreen_Portrait(groupedMeals: Map<String, List<Meal>>) {
+fun LoggedMealsScreen_Portrait(
+    groupedMeals: Map<String, List<Meal>>,
+) {
     val orientation = LocalConfiguration.current.orientation
     val isPortrait = (orientation == Configuration.ORIENTATION_PORTRAIT)
+    val imageCache = remember { mutableMapOf<Uri, Bitmap?>() }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -143,7 +146,7 @@ fun LoggedMealsScreen_Portrait(groupedMeals: Map<String, List<Meal>>) {
                     }
                 }
                 items(mealsForDate) { meal -> // Meals for that date
-                    LoggedMealCard(meal = meal, isPortrait = isPortrait)
+                    LoggedMealCard(meal = meal, isPortrait = isPortrait, imageCache=imageCache)
                 }
                 item { HorizontalDivider(color = Color.Black) }
             }
@@ -155,13 +158,14 @@ fun LoggedMealsScreen_Portrait(groupedMeals: Map<String, List<Meal>>) {
 @Preview
 @Composable
 fun LoggedMealCard_Preview() {
+    val imageCache = remember { mutableMapOf<Uri, Bitmap?>() }
     InsetContent {
-        LoggedMealCard(meal = sampleMeal, isPortrait = true)
+        LoggedMealCard(meal = sampleMeal, isPortrait = true, imageCache = imageCache)
     }
 }
 
 @Composable
-fun LoggedMealCard(meal: Meal, isPortrait: Boolean) {
+fun LoggedMealCard(meal: Meal, isPortrait: Boolean, imageCache: MutableMap<Uri, Bitmap?>) {
     Card(
         shape = RoundedCornerShape(12.dp),
         elevation = CardDefaults.cardElevation(4.dp),
@@ -175,9 +179,9 @@ fun LoggedMealCard(meal: Meal, isPortrait: Boolean) {
                 .padding(16.dp)
         ) {
             if (isPortrait) {
-                verticalPhotos(meal = meal)
+                VerticalPhotos(meal = meal, imageCache)
             } else {
-                horizontalPhotos(meal = meal)
+                HorizontalPhotos(meal = meal, imageCache)
             }
 
             Column(
@@ -253,7 +257,7 @@ fun LoggedMealCard(meal: Meal, isPortrait: Boolean) {
 }
 
 @Composable
-private fun horizontalPhotos(meal: Meal) {
+private fun HorizontalPhotos(meal: Meal, imageCache: MutableMap<Uri, Bitmap?>) {
     Row {
         meal.photo?.let { byteArray ->
             val bitmap = byteArrayToBitmap(byteArray)
@@ -272,13 +276,13 @@ private fun horizontalPhotos(meal: Meal) {
             val photoUri = Uri.parse(uriString)
             Text(text = "From Firebase: ",
                 fontSize = 10.sp)
-            DisplayImageFromUri(photoUri)
+            DisplayImageFromUri(photoUri, imageCache = imageCache)
         }
     }
 }
 
 @Composable
-private fun verticalPhotos(meal: Meal) {
+private fun VerticalPhotos(meal: Meal, imageCache: MutableMap<Uri, Bitmap?>) {
     Column(
         verticalArrangement = Arrangement.Center
     ) {
@@ -299,22 +303,27 @@ private fun verticalPhotos(meal: Meal) {
             val photoUri = Uri.parse(uriString)
             Text(text = "From Firebase: ",
                 fontSize = 10.sp)
-            DisplayImageFromUri(photoUri)
+            DisplayImageFromUri(photoUri, imageCache = imageCache)
         }
     }
 }
 
 
 @Composable
-fun DisplayImageFromUri(photoURI: Uri?) {
+fun DisplayImageFromUri(photoURI: Uri, imageCache: MutableMap<Uri, Bitmap?>) {
     val context = LocalContext.current
     val imageState = remember { mutableStateOf<Bitmap?>(null) }
 
     LaunchedEffect(photoURI) {
-        if (photoURI != null) {
+        if (imageCache.containsKey(photoURI)) {
+            // If the image is already in the cache, use it
+            imageState.value = imageCache[photoURI]
+        } else {
+            // Otherwise, load the image and cache it
             try {
                 val bitmap = loadImageFromUri(context, photoURI)
                 imageState.value = bitmap
+                imageCache[photoURI] = bitmap // Cache the loaded image
             } catch (e: Exception) {
                 Log.e("ImageLoading", "Error loading image", e)
             }
