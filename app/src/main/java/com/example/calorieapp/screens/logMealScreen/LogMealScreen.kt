@@ -1,8 +1,11 @@
 package com.example.calorieapp.screens.logMealScreen
 
 import android.app.DatePickerDialog
+import android.content.Context
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.BitmapFactory
+import android.net.ConnectivityManager
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -46,6 +49,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.example.calorieapp.CalorieAppViewModel
 import com.example.calorieapp.MealIngredient
+import com.example.calorieapp.remoteAPIs.isOnline
 import java.time.LocalDate
 
 @Composable
@@ -134,11 +138,11 @@ private fun LogMealScreenHeader(shvm: CalorieAppViewModel) {
         Text(
             modifier = Modifier.padding(horizontal = 10.dp),
             text = "TOTAL: " +
-                    "weight: ${meal.totalWeight}, " +
-                    "Calories: ${meal.totalCalories}, " +
-                    "Fats: ${meal.totalFats}, " +
-                    "protein: ${meal.totalProtein}, " +
-                    "carbs: ${meal.totalCarbs}",
+                    "weight: ${meal.totalWeight} g, " +
+                    "Calories: ${meal.totalCalories.toInt()} kcal,\n" +
+                    "Fats: ${meal.totalFats.toInt()} g, " +
+                    "protein: ${meal.totalProtein.toInt()} g, " +
+                    "carbs: ${meal.totalCarbs.toInt()} g",
             style = MaterialTheme.typography.bodyLarge.copy(
                 fontWeight = FontWeight.Bold
             ),
@@ -158,6 +162,22 @@ private fun LogMealScreenFooter(shvm: CalorieAppViewModel) {
         contract = ActivityResultContracts.TakePicturePreview()
     ) { bitmap: Bitmap? ->
         meal.photo = bitmap
+    }
+
+    // Gallery launcher for getting images frm gallery
+    val galleryLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.GetContent()
+    ) { uri ->
+        uri?.let {
+            // Convert the selected URI to a Bitmap and set it to the meal's photo
+            // val bitmap = loadImageFromUri(context, it) // Create a function to load bitmap from URI
+            val inputStream = context.contentResolver.openInputStream(uri)
+            inputStream?.let {
+                // Decode the input stream into a Bitmap
+                val bitmap = BitmapFactory.decodeStream(it)
+                meal.photo = bitmap
+            }
+        }
     }
 
     Column(
@@ -181,37 +201,49 @@ private fun LogMealScreenFooter(shvm: CalorieAppViewModel) {
                 ) { Text("Take Picture") }
 
                 Button(
-                    onClick = {
-                        if (meal.isValid()) {
-                            val mealName = meal.mealName // snapshot in case it changes
-                            val calories = meal.totalCalories.toInt()
-                            shvm.saveMealToDB(successToast = {
-                                Toast.makeText(
-                                    context,
-                                    "Saved meal: $mealName, ($calories kcal)",
-                                    Toast.LENGTH_SHORT
-                                ).show()
-                            })
-                        } else {
+                    onClick = { galleryLauncher.launch("image/*") }, // Launch the gallery picker
+                    modifier = Modifier.weight(1f)
+                ) { Text("Select from Gallery") }
+            }
+            Button(
+                onClick = {
+                    val isOnline = isOnline(context)
+                    if (meal.isValid()) {
+                        val mealName = meal.mealName // snapshot in case it changes
+                        val calories = meal.totalCalories.toInt()
+                        if (!isOnline) {
                             Toast.makeText(
                                 context,
-                                "Provide meal name and a valid ingredient before saving",
+                                "Unable to upload to firebase, check internet connection...",
                                 Toast.LENGTH_SHORT
                             ).show()
                         }
-                    },
-                    modifier = Modifier.weight(1f),
-                    enabled = !shvm.insertingIntoDB,
-                ) {
-                    if (shvm.insertingIntoDB) {
-                        CircularProgressIndicator(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .size(25.dp)
-                        )
+                        shvm.saveMealToDB(successToast = {
+                            Toast.makeText(
+                                context,
+                                "Saved meal: $mealName, ($calories kcal)",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }, isOnline = isOnline)
                     } else {
-                        Text("Add to Database")
+                        Toast.makeText(
+                            context,
+                            "Provide meal name and a valid ingredient before saving",
+                            Toast.LENGTH_SHORT
+                        ).show()
                     }
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !shvm.insertingIntoDB,
+            ) {
+                if (shvm.insertingIntoDB) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .fillMaxHeight()
+                            .size(25.dp)
+                    )
+                } else {
+                    Text("Add to Database")
                 }
             }
         }
@@ -244,6 +276,7 @@ private fun LogMealScreenFooter(shvm: CalorieAppViewModel) {
 @Composable
 fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
     val meal = shvm.currentMeal
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -272,7 +305,14 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
             items(meal.ingredients) { ingredient ->
                 IngredientInputCard(
                     ingredient = ingredient,
-                    onAutofill = { shvm.autofillIngredient(ingredient) },
+                    onAutofill = { shvm.autofillIngredient(ingredient,
+                        failToast = {
+                            Toast.makeText(
+                                context,
+                                "Unable to autofill, check internet connection...",
+                                Toast.LENGTH_SHORT
+                            ).show()
+                        }) },
                     onDelete = { meal.ingredients.remove(ingredient) },
                     loading = ingredient.isLoading,
                 )
@@ -286,6 +326,7 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
 @Composable
 fun LogMealScreen_Landscape(shvm: CalorieAppViewModel) {
     val meal = shvm.currentMeal
+    val context = LocalContext.current
 
     Column(
         modifier = Modifier
@@ -331,7 +372,14 @@ fun LogMealScreen_Landscape(shvm: CalorieAppViewModel) {
                     items(meal.ingredients) { ingredient ->
                         IngredientInputCard(
                             ingredient = ingredient,
-                            onAutofill = { shvm.autofillIngredient(ingredient) },
+                            onAutofill = { shvm.autofillIngredient(ingredient,
+                                failToast = {
+                                    Toast.makeText(
+                                        context,
+                                        "Unable to autofill, check internet connection...",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                }) },
                             onDelete = { meal.ingredients.remove(ingredient) },
                             loading = ingredient.isLoading,
                         )

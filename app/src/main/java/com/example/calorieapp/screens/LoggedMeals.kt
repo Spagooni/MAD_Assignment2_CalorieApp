@@ -374,7 +374,7 @@ fun DisplayImageFromUri(photoURI: Uri, imageCache: MutableMap<Uri, Bitmap?>) {
         Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = "Loaded Image",
-            contentScale = ContentScale.Crop,
+            // contentScale = ContentScale.Crop,
             modifier = Modifier
                 .size(imageHeight)
                 .padding(end = 16.dp)
