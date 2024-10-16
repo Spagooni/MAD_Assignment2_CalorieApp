@@ -274,10 +274,41 @@ private fun LogMealScreenFooter(shvm: CalorieAppViewModel) {
 }
 
 @Composable
-fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
+fun IngredientsColumn(shvm: CalorieAppViewModel) {
     val meal = shvm.currentMeal
     val context = LocalContext.current
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+    ) {
+        meal.ingredients.forEach { ingredient ->
+            IngredientInputCard(
+                ingredient = ingredient,
+                onAutofill = { shvm.autofillIngredient(ingredient,
+                    failToast = {
+                        Toast.makeText(
+                            context,
+                            "Unable to autofill, check internet connection...",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    },
+                    nothingReturnedToast = {
+                        Toast.makeText(
+                            context,
+                            "No information for autofill, please enter manually",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                ) },
+                onDelete = { meal.ingredients.remove(ingredient) },
+                loading = ingredient.isLoading,
+            )
+        }
+    }
+}
 
+@Composable
+fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -294,40 +325,14 @@ fun LogMealScreen_Portrait(shvm: CalorieAppViewModel) {
                 ),
             // color = Color.White,
         )
-
         LogMealScreenHeader(shvm)
-
-        LazyColumn(
-            modifier = Modifier
-                .fillMaxWidth()
-                .heightIn(max = 90000.dp)
-        ) {
-            items(meal.ingredients) { ingredient ->
-                IngredientInputCard(
-                    ingredient = ingredient,
-                    onAutofill = { shvm.autofillIngredient(ingredient,
-                        failToast = {
-                            Toast.makeText(
-                                context,
-                                "Unable to autofill, check internet connection...",
-                                Toast.LENGTH_SHORT
-                            ).show()
-                        }) },
-                    onDelete = { meal.ingredients.remove(ingredient) },
-                    loading = ingredient.isLoading,
-                )
-            }
-        }
-
+        IngredientsColumn(shvm)
         LogMealScreenFooter(shvm)
     }
 }
 
 @Composable
 fun LogMealScreen_Landscape(shvm: CalorieAppViewModel) {
-    val meal = shvm.currentMeal
-    val context = LocalContext.current
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -364,27 +369,7 @@ fun LogMealScreen_Landscape(shvm: CalorieAppViewModel) {
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                LazyColumn(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(max = 90000.dp)
-                ) {
-                    items(meal.ingredients) { ingredient ->
-                        IngredientInputCard(
-                            ingredient = ingredient,
-                            onAutofill = { shvm.autofillIngredient(ingredient,
-                                failToast = {
-                                    Toast.makeText(
-                                        context,
-                                        "Unable to autofill, check internet connection...",
-                                        Toast.LENGTH_SHORT
-                                    ).show()
-                                }) },
-                            onDelete = { meal.ingredients.remove(ingredient) },
-                            loading = ingredient.isLoading,
-                        )
-                    }
-                }
+                IngredientsColumn(shvm)
             }
         }
     }
