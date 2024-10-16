@@ -62,9 +62,10 @@ class CalorieAppViewModel : ViewModel() {
      * - insertingIntoDB (true during insert AND upload if photo available)
      * - imageUploadProgress (from 0.0 to 1.0 and null when not uploading)
      */
-    @RequiresApi(Build.VERSION_CODES.O)
     fun saveMealToDB(
         successToast : () -> Unit,
+        /** flag to prevent firebase upload if wifi off */
+        isOnline: Boolean,
     ) {
         if (mealDao == null) {
             Log.e("Database", "ERROR cannot insert, no DAO provided")
@@ -102,17 +103,22 @@ class CalorieAppViewModel : ViewModel() {
         if (mealPhotoByteArray == null) { // no photo for meal, direct insert
             saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast)
         } else {
-            Log.e("DATABASE", "has photo, uploading with photo")
+            Log.e("DATABASE", "has photo, saving with photo")
             newMeal.photo = mealPhotoByteArray // set bytearray field in DB
-            uploadMealImageToFirebase(
-                onUploadSuccess = { uriString ->
-                    newMeal.photoUrl = uriString
-                    saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast) // save with firebase URL
-                },
-                onUploadFail = {
-                    saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast) // save anyways???
-                }
-            )
+            if (isOnline) {
+                uploadMealImageToFirebase(
+                    onUploadSuccess = { uriString ->
+                        newMeal.photoUrl = uriString
+                        saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast) // save with firebase URL
+                    },
+                    onUploadFail = {
+                        saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast) // save anyways???
+                    }
+                )
+            }
+            else {
+                saveToDatabase(mealDao = safeMealDao, meal = newMeal, successToast)
+            }
         }
     }
 
@@ -132,9 +138,10 @@ class CalorieAppViewModel : ViewModel() {
                 }
                 // Proceed to upload the image
                 withContext(Dispatchers.IO) {
+                    Log.e("DATABASE", "uploading with name: " + "${currentMeal.mealName}_${currentMeal.dateString}")
                     uploadImageToFirebase(
                         imageByteArray = byteArray,
-                        name = currentMeal.mealName,
+                        name = "${currentMeal.mealName}_${currentMeal.dateString}",
                         onUploadSuccess = onUploadSuccess,
                         onUploadFail = onUploadFail,
                     )
@@ -178,10 +185,13 @@ class CalorieAppViewModel : ViewModel() {
         private set
 
     /** autofill ingredient per-gram values based on API call */
-    fun autofillIngredient(ingredient: MealIngredient) {
+    fun autofillIngredient(
+        ingredient: MealIngredient,
+        failToast: () -> Unit
+    ) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                ingredient.autofill(calorieNinjasAPIService)
+                ingredient.autofill(calorieNinjasAPIService, failToast)
             }
         }
     }
@@ -259,7 +269,10 @@ class MealIngredient() {
      * Autofill function to fetch data from the API.
      * This updates the loading state before and after the network call.
      */
-    suspend fun autofill(apiService: CalorieNinjasAPICalls) {
+    suspend fun autofill(
+        apiService: CalorieNinjasAPICalls,
+        failToast: () -> Unit,
+    ) {
         try {
             isLoading = true // Set loading to true when request starts
             val response =
@@ -274,6 +287,9 @@ class MealIngredient() {
             }
         } catch (e: Exception) {
             Log.e("API", "Error fetching data: ${e.message}") // Handle the error here
+            withContext(Dispatchers.Main) {
+                failToast()
+            }
         } finally {
             isLoading = false // Set loading to false when request finishes (either success or failure)
         }

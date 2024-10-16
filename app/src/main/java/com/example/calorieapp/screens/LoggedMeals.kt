@@ -34,11 +34,18 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.MutableState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.style.TextAlign
@@ -66,6 +73,7 @@ val sampleMeal = Meal(
     photo = null,
     photoUrl = null
 )
+val imageHeight = 80.dp
 
 @Composable
 fun LoggedMealsScreen() {
@@ -83,7 +91,7 @@ fun LoggedMealsScreen() {
     /** Group meals by date */
     val groupedMeals = mealList.value.groupBy { meal ->
         meal.date
-    }
+    }.toSortedMap(reverseOrder())
     
     InsetContent {
         LoggedMealsScreen_Portrait(groupedMeals = groupedMeals)
@@ -110,6 +118,27 @@ fun LoggedMealsScreen_Portrait(
     val orientation = LocalConfiguration.current.orientation
     val isPortrait = (orientation == Configuration.ORIENTATION_PORTRAIT)
     val imageCache = remember { mutableMapOf<Uri, Bitmap?>() }
+    val context = LocalContext.current
+
+    // For each meal, fetch its image and save to the cache
+    LaunchedEffect(groupedMeals) {
+        Log.d("ImageLoading", "pre-fetching now, groups: ${groupedMeals.size}")
+        groupedMeals.values.flatten().forEach { meal ->
+            Log.d("ImageLoading", "pre-fetching meal: ${meal.name}")
+            meal.photoUrl?.let { uriString ->
+                Log.d("ImageLoading", "pre-fetching for uri: uriString")
+                val photoURI = Uri.parse(uriString)
+                // Load the image and cache it
+                try {
+                    val bitmap = loadImageFromUri(context, photoURI)
+                    imageCache[photoURI] = bitmap // Cache the loaded image
+                } catch (e: Exception) {
+                    Log.e("ImageLoading", "Error pre-loading image $e")
+                }
+            }
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -269,7 +298,7 @@ private fun HorizontalPhotos(meal: Meal, imageCache: MutableMap<Uri, Bitmap?>) {
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "Meal Image from Database",
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(imageHeight)
                     .padding(end = 16.dp)
             )
         }
@@ -296,7 +325,7 @@ private fun VerticalPhotos(meal: Meal, imageCache: MutableMap<Uri, Bitmap?>) {
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "Meal Image from Database",
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(imageHeight)
                     .padding(end = 16.dp)
             )
         }
@@ -315,34 +344,60 @@ private fun VerticalPhotos(meal: Meal, imageCache: MutableMap<Uri, Bitmap?>) {
 fun DisplayImageFromUri(photoURI: Uri, imageCache: MutableMap<Uri, Bitmap?>) {
     val context = LocalContext.current
     val imageState = remember { mutableStateOf<Bitmap?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    Log.d("ImageLoading", "start, isLoading = true")
 
     LaunchedEffect(photoURI) {
+        Log.d("ImageLoading", "launchedEffect, isLoading = true")
         if (imageCache.containsKey(photoURI)) {
             // If the image is already in the cache, use it
             imageState.value = imageCache[photoURI]
         } else {
+            isLoading = true
+            Log.e("ImageLoading", "cache miss!, size = ${imageCache.size}")
             // Otherwise, load the image and cache it
             try {
                 val bitmap = loadImageFromUri(context, photoURI)
                 imageState.value = bitmap
                 imageCache[photoURI] = bitmap // Cache the loaded image
+                isLoading = false
+                Log.d("ImageLoading", "image? returned, isLoading=false")
             } catch (e: Exception) {
-                Log.e("ImageLoading", "Error loading image", e)
+                Log.e("ImageLoading", "Error loading image $e")
+                isLoading = false
+                Log.d("ImageLoading", "caught error, isLoading=false")
             }
         }
     }
 
-    imageState.value?.let { bitmap ->
+    imageState.value?.let { bitmap -> // if image returned and available, use that
         Image(
             bitmap = bitmap.asImageBitmap(),
             contentDescription = "Loaded Image",
-            contentScale = ContentScale.Crop,
+            // contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(80.dp)
+                .size(imageHeight)
                 .padding(end = 16.dp)
         )
-    } ?: CircularProgressIndicator(
-        modifier = Modifier.fillMaxHeight().size(25.dp))
+    } ?:
+    if (isLoading) {
+        Box(
+            modifier = Modifier.size(imageHeight),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .size(25.dp)
+            )
+        }
+    } else {
+        Text(
+            "Unable to load image from firebase, check internet connection...",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.size(width = 150.dp, height = imageHeight) // use same height to prevent scrolling issues
+        )
+    }
 }
 
 suspend fun loadImageFromUri(context: Context, uri: Uri): Bitmap? {
@@ -360,7 +415,7 @@ suspend fun loadImageFromUri(context: Context, uri: Uri): Bitmap? {
                 BitmapFactory.decodeStream(inputStream)
             }
         } catch (e: Exception) {
-            Log.e("ImageError", "Error decoding image", e)
+            Log.e("ImageError", "Error decoding image $e")
             null
         }
     }
