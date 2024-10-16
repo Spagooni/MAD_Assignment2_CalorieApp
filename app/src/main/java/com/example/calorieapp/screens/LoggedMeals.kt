@@ -34,10 +34,13 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.border
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.runtime.MutableState
@@ -70,6 +73,7 @@ val sampleMeal = Meal(
     photo = null,
     photoUrl = null
 )
+val imageHeight = 80.dp
 
 @Composable
 fun LoggedMealsScreen() {
@@ -294,7 +298,7 @@ private fun HorizontalPhotos(meal: Meal, imageCache: MutableMap<Uri, Bitmap?>) {
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "Meal Image from Database",
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(imageHeight)
                     .padding(end = 16.dp)
             )
         }
@@ -321,7 +325,7 @@ private fun VerticalPhotos(meal: Meal, imageCache: MutableMap<Uri, Bitmap?>) {
                 bitmap = bitmap.asImageBitmap(),
                 contentDescription = "Meal Image from Database",
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(imageHeight)
                     .padding(end = 16.dp)
             )
         }
@@ -341,16 +345,16 @@ fun DisplayImageFromUri(photoURI: Uri, imageCache: MutableMap<Uri, Bitmap?>) {
     val context = LocalContext.current
     val imageState = remember { mutableStateOf<Bitmap?>(null) }
     var isLoading by remember { mutableStateOf(false) }
-    Log.d("ImageLoading", "start, isLoading = false")
+    Log.d("ImageLoading", "start, isLoading = true")
 
     LaunchedEffect(photoURI) {
-        isLoading = true
         Log.d("ImageLoading", "launchedEffect, isLoading = true")
         if (imageCache.containsKey(photoURI)) {
             // If the image is already in the cache, use it
             imageState.value = imageCache[photoURI]
         } else {
-            Log.d("ImageLoading", "cache miss!, size = ${imageCache.size}")
+            isLoading = true
+            Log.e("ImageLoading", "cache miss!, size = ${imageCache.size}")
             // Otherwise, load the image and cache it
             try {
                 val bitmap = loadImageFromUri(context, photoURI)
@@ -372,19 +376,28 @@ fun DisplayImageFromUri(photoURI: Uri, imageCache: MutableMap<Uri, Bitmap?>) {
             contentDescription = "Loaded Image",
             contentScale = ContentScale.Crop,
             modifier = Modifier
-                .size(80.dp)
+                .size(imageHeight)
                 .padding(end = 16.dp)
         )
-    } ?: CircularProgressIndicator(
-        modifier = Modifier.fillMaxHeight().size(25.dp))
-    // if (isLoading) {
-    //     CircularProgressIndicator(
-    //         modifier = Modifier.fillMaxHeight().size(25.dp))
-    // } else {
-    //     Text("Unable to load image from firebase, check internet connection...",
-    //         modifier = Modifier.wrapContentSize())
-    // }
-
+    } ?:
+    if (isLoading) {
+        Box(
+            modifier = Modifier.size(imageHeight),
+            contentAlignment = Alignment.Center,
+        ) {
+            CircularProgressIndicator(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .size(25.dp)
+            )
+        }
+    } else {
+        Text(
+            "Unable to load image from firebase, check internet connection...",
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.size(width = 150.dp, height = imageHeight) // use same height to prevent scrolling issues
+        )
+    }
 }
 
 suspend fun loadImageFromUri(context: Context, uri: Uri): Bitmap? {
