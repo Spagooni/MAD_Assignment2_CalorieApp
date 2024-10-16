@@ -187,11 +187,12 @@ class CalorieAppViewModel : ViewModel() {
     /** autofill ingredient per-gram values based on API call */
     fun autofillIngredient(
         ingredient: MealIngredient,
-        failToast: () -> Unit
+        failToast: () -> Unit,
+        nothingReturnedToast: () -> Unit
     ) {
         viewModelScope.launch {
             withContext(Dispatchers.IO) {
-                ingredient.autofill(calorieNinjasAPIService, failToast)
+                ingredient.autofill(calorieNinjasAPIService, failToast, nothingReturnedToast)
             }
         }
     }
@@ -272,12 +273,22 @@ class MealIngredient() {
     suspend fun autofill(
         apiService: CalorieNinjasAPICalls,
         failToast: () -> Unit,
+        nothingReturnedToast: () -> Unit,
     ) {
         try {
             isLoading = true // Set loading to true when request starts
             val response =
                 apiService.getSearchResponse(name) // Query the API based on the ingredient name
-
+            if (response.items.isEmpty()) {
+                withContext(Dispatchers.Main) {
+                    nothingReturnedToast()
+                }
+                // set all blank
+                kcalPer100g = ""
+                fatsPer100g = ""
+                proteinPer100g = ""
+                carbsPer100g = ""
+            }
             response.items.firstOrNull()?.let { item ->
                 val servingSize = item.servingSizeGrams
                 kcalPer100g = "%.2f".format(item.caloriesPerServe / (servingSize / 100.0))
