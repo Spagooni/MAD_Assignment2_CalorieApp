@@ -259,7 +259,7 @@ fun LoggedMealCard(meal: Meal, isPortrait: Boolean, imageCache: MutableMap<Uri, 
                     )
                 )
                 Text(
-                    text = "Total Calories: ${meal.calories}g",
+                    text = "Total Calories: ${meal.calories} kCal",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = Color.Gray
                     )
