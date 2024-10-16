@@ -83,7 +83,7 @@ fun LoggedMealsScreen() {
     /** Group meals by date */
     val groupedMeals = mealList.value.groupBy { meal ->
         meal.date
-    }
+    }.toSortedMap(reverseOrder())
     
     InsetContent {
         LoggedMealsScreen_Portrait(groupedMeals = groupedMeals)
